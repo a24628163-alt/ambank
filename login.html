@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+    <title>Sign in | AmBank</title>
+</head>
+
+<body>
+    <div class="auth">
+        <aside>
+            <h1>AmBank</h1>
+            <p>American Bank online banking. Your money, in clear view.</p>
+        </aside>
+        <main>
+            <form data-page="login" novalidate>
+                <h2>Sign in</h2>
+                <label class="field">Email or account number<input name="email" type="text" autocomplete="username"
+                        required></label>
+                <label class="field">Password<span class="pw"><input name="password" type="password"
+                            autocomplete="current-password" required><button type="button" aria-label="Show password"><i
+                                class="fa-solid fa-eye"></i></button></span></label>
+                <label class="field" style="font-weight:400"><input type="checkbox" name="remember" checked> Remember me
+                    on this device</label><a href="#" id="forgot">Forgot password?</a>
+                <p class="msg" id="msg" role="alert"></p>
+                <button class="btn" style="width:100%">Sign in</button>
+                <p>New to AmBank? <a href="register.html">Open an account</a></p>
+                <p class="sim">Development build. All funds are simulated.</p>
+            </form>
+        </main>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+    <script type="module" src="js/auth.js"></script>
+</body>
+
+</html>

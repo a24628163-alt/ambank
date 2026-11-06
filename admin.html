@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="css/admin.css">
+    <meta name="robots" content="noindex">
+    <title>Staff | AmBank</title>
+</head>
+
+<body>
+    <main class="wrap" id="login" style="max-width:420px" hidden>
+        <form class="card" id="loginForm">
+            <h2 style="margin-top:0">AmBank staff sign in</h2>
+            <label class="field">Email<input name="email" type="email" autocomplete="username" required></label>
+            <label class="field">Password<input name="password" type="password" autocomplete="current-password"
+                    required></label>
+            <p class="msg" id="loginMsg" role="alert"></p><button class="btn" style="width:100%">Sign in</button>
+        </form>
+    </main>
+    <main class="wrap" id="mfa" style="max-width:420px" hidden>
+        <form class="card" id="mfaForm">
+            <h2 style="margin-top:0">Two-step verification</h2>
+            <p id="mfaHelp"></p><label class="field">6-digit code<input name="code" inputmode="numeric" maxlength="6"
+                    autocomplete="one-time-code" required></label>
+            <p class="msg" id="mfaMsg" role="alert"></p><button class="btn" style="width:100%">Verify</button>
+        </form>
+    </main>
+    
+    <div id="app" hidden>
+        <header class="top">
+            <span class="logo">AmBank Staff <span class="badge active" id="role"></span></span>
+            
+            <div style="display:flex; gap:0.5rem; align-items:center;">
+                <!-- NEW: Admin Notification Bell -->
+                <button class="btn ghost" id="adminBell" aria-label="Notifications" style="padding:0.5rem 0.8rem; position:relative;">
+                    <i class="fa-solid fa-bell"></i>
+                    <span id="adminBellCount" hidden style="position:absolute; top:-5px; right:-5px; background:var(--bad); color:white; border-radius:50%; padding:2px 6px; font-size:10px;"></span>
+                </button>
+                <button class="btn ghost" id="logout">Sign out</button>
+            </div>
+        </header>
+        
+        <main class="wrap">
+            <div class="tabs">
+                <button class="btn ghost" data-tab="customers" aria-selected="true">Customers</button>
+                <button class="btn ghost" data-tab="deposits" aria-selected="false" id="depositTab">Approve Deposits</button>
+                <button class="btn ghost" data-tab="chats" aria-selected="false" id="chatTab">Live chats</button>
+                <button class="btn ghost" data-tab="tickets" aria-selected="false">Tickets</button>
+                <button class="btn ghost adminonly" data-tab="staff" aria-selected="false">Staff</button>
+                <button class="btn ghost" data-tab="audit" aria-selected="false">Audit log</button>
+            </div>
+            
+            <!-- CUSTOMERS TAB -->
+            <section class="panel" id="tab-customers">
+                <div class="cols">
+                    <div class="stack">
+                        <form class="card" id="searchForm">
+                            <label class="field">Account number, email or customer ID<input name="q" minlength="3" required></label>
+                            <button class="btn">Search</button>
+                        </form>
+                        <ul class="list card" id="results"></ul>
+                    </div>
+                    
+                    <div class="stack" id="detail" hidden>
+                        <section class="card">
+                            <h2 style="margin:0" id="dName"></h2>
+                            <div id="dInfo"></div>
+                            <span class="badge" id="dStatus"></span>
+                        </section>
+                        
+                        <!-- KYC APPROVAL PANEL -->
+                        <div id="kycActions" class="card" hidden style="border: 2px solid var(--aqua);">
+                            <h3 style="margin-top:0">KYC Review Required</h3>
+                            <p class="sim">Check the ID and facial verification before approving.</p>
+                            <div class="actions">
+                                <button class="btn" id="btnApprove" style="background: #237A3B;">Approve Customer</button>
+                                <button class="btn" id="btnReject" style="background: #C0392B;">Reject Customer</button>
+                            </div>
+                        </div>
+
+                        <div class="adminonly stack">
+                            <form class="card" id="statusForm">
+                                <h3 style="margin-top:0">Account status</h3>
+                                <div class="inline"><select id="statusSel" name="status">
+                                        <option value="active">Active</option>
+                                        <option value="frozen">Frozen</option>
+                                        <option value="suspended">Suspended</option>
+                                    </select><input name="reason" placeholder="Reason" required minlength="5"></div>
+                                <p class="msg" role="alert"></p><button class="btn">Update status</button>
+                            </form>
+                            <form class="card" id="adjustForm">
+                                <h3 style="margin-top:0">Balance adjustment</h3>
+                                <div class="inline"><select name="account">
+                                        <option value="checking">Checking</option>
+                                        <option value="savings">Savings</option>
+                                    </select><select name="type">
+                                        <option value="admin_credit">Credit</option>
+                                        <option value="admin_debit">Debit</option>
+                                        <option value="manual_deposit">Manual deposit</option>
+                                    </select><input name="amount" type="number" min="0.01" step="0.01"
+                                        placeholder="Amount" required><input name="reason" placeholder="Reason" required
+                                        minlength="5"></div>
+                                <p class="msg" role="alert"></p><button class="btn">Apply</button>
+                            </form>
+                            <form class="card" id="pinForm">
+                                <h3 style="margin-top:0">Reset transaction PIN</h3><input name="reason"
+                                    placeholder="Reason" required minlength="5"
+                                    style="width:100%;padding:.7rem;border:1px solid var(--border);border-radius:10px">
+                                <p class="msg" role="alert"></p><button class="btn">Reset PIN</button>
+                            </form>
+                        </div>
+                        
+                        <section class="card">
+                            <h3 style="margin-top:0">Transactions</h3>
+                            <ul class="list" id="dTx"></ul>
+                        </section>
+                    </div>
+                </div>
+            </section>
+
+            <!-- APPROVE DEPOSITS TAB -->
+            <section class="panel card" id="tab-deposits" hidden>
+                <h3 style="margin-top:0">Pending Deposit Requests</h3>
+                <p class="sim">Verify the funds in the bank account or crypto wallet before approving.</p>
+                <ul class="list" id="depositList">
+                    <li>Loading...</li>
+                </ul>
+            </section>
+
+            <!-- LIVE CHATS TAB -->
+            <section class="panel" id="tab-chats" hidden>
+                <div class="cols">
+                    <section class="card">
+                        <ul class="list" id="cList">
+                            <li>Loading…</li>
+                        </ul>
+                    </section>
+                    <section class="card" id="cPane">
+                        <p class="sim">Select a chat. Stay on this page while on shift: it marks you as online for
+                            customers.</p>
+                    </section>
+                </div>
+            </section>
+            
+            <!-- TICKETS TAB -->
+            <section class="panel" id="tab-tickets" hidden>
+                <div class="cols">
+                    <section class="card"><label class="field">Status<select id="tFilter">
+                                <option value="">All</option>
+                                <option value="open">Open</option>
+                                <option value="in_progress">In progress</option>
+                                <option value="resolved">Resolved</option>
+                                <option value="closed">Closed</option>
+                            </select></label>
+                        <ul class="list" id="tList"></ul>
+                    </section>
+                    <section class="card" id="tThread">
+                        <p class="sim">Select a ticket.</p>
+                    </section>
+                </div>
+            </section>
+            
+            <!-- STAFF TAB (Admin Only) -->
+            <section class="panel card" id="tab-staff" hidden>
+                <form id="staffForm">
+                    <div class="inline"><input name="email" type="email" placeholder="Registered user's email"
+                            required><select name="role">
+                            <option value="support">Support</option>
+                            <option value="admin">Admin</option>
+                            <option value="none">Remove access</option>
+                        </select></div>
+                    <p class="msg" role="alert"></p><button class="btn">Save</button>
+                </form>
+                <ul class="list" id="staffList"></ul>
+            </section>
+            
+            <!-- AUDIT LOG TAB -->
+            <section class="panel card" id="tab-audit" hidden>
+                <div class="scroll">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Admin</th>
+                                <th>Action</th>
+                                <th>Customer</th>
+                                <th>Details</th>
+                            </tr>
+                        </thead>
+                        <tbody id="aBody"></tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+    <script type="module" src="js/admin.js"></script>
+</body>
+
+</html>

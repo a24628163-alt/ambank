@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="css/admin.css">
+    <title>Support | AmBank</title>
+</head>
+
+<body>
+    <header class="top"><a class="logo" href="dashboard.html" style="text-decoration:none">AmBank</a>
+        <nav class="nav"><a href="dashboard.html">Dashboard</a><a href="transactions.html">Transactions</a><a
+                href="support.html">Support</a></nav>
+    </header>
+    <main class="wrap">
+        <div class="cols">
+            <div class="stack">
+                <form class="card" id="ticketForm">
+                    <h2 style="margin-top:0">Contact support</h2>
+                    <label class="field">Subject<input name="subject" maxlength="120" required></label>
+                    <label class="field">What happened?<textarea name="message" rows="4" maxlength="2000"
+                            required></textarea></label>
+                    <p class="msg" id="ticketMsg" role="alert"></p><button class="btn">Submit ticket</button>
+                </form>
+                <section class="card">
+                    <h3 style="margin-top:0">Your tickets</h3>
+                    <ul class="list" id="tickets">
+                        <li>Loading…</li>
+                    </ul>
+                </section>
+            </div>
+            <section class="card" id="thread">
+                <p class="sim">Select a ticket to see the conversation.</p>
+            </section>
+        </div>
+    </main>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+    <script type="module" src="js/support.js"></script>
+</body>
+
+</html>

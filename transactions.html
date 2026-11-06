@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+    <title>Transactions | AmBank</title>
+</head>
+
+<body>
+    <header class="top"><a class="logo" href="dashboard.html" style="text-decoration:none">AmBank</a>
+        <nav class="nav"><a href="dashboard.html">Dashboard</a><a href="transactions.html">Transactions</a><a
+                href="support.html">Support</a></nav>
+    </header>
+    <main class="wrap">
+        <section class="card">
+            <h2 style="margin-top:0">Transaction history</h2>
+            <div class="actions noprint" style="align-items:end;margin-bottom:1rem"><label class="field"
+                    style="max-width:240px;margin:0">Filter<select id="type"></select></label><button class="btn ghost"
+                    id="csv"><i class="fa-solid fa-file-csv"></i> Export CSV</button><button class="btn ghost"
+                    id="print"><i class="fa-solid fa-print"></i> Print statement</button></div>
+            <p class="sim printonly" id="stmtHead"></p>
+            <div class="scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Details</th>
+                            <th>Status</th>
+                            <th style="text-align:right">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rows">
+                        <tr>
+                            <td colspan="4">Loading…</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+    <script type="module" src="js/history.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- jsPDF for downloadable receipts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+    <title>Dashboard | AmBank</title>
+</head>
+
+<body>
+    <header class="top">
+        <span class="logo">AmBank</span>
+        
+        <div style="display:flex; gap:0.5rem; align-items:center;">
+            <button class="btn ghost" id="themeToggle" aria-label="Toggle Dark Mode" style="padding:0.5rem 0.8rem;">
+                <i class="fa-solid fa-moon"></i>
+            </button>
+            <button class="btn ghost" id="bell" aria-label="Notifications" style="padding:0.5rem 0.8rem;">
+                <i class="fa-solid fa-bell"></i><span id="bellCount" hidden></span>
+            </button>
+        </div>
+
+        <nav class="nav">
+            <a href="transactions.html">Transactions</a>
+            <a href="support.html">Support</a>
+        </nav>
+        
+        <button class="btn ghost" id="logout"><i class="fa-solid fa-right-from-bracket"></i> Sign out</button>
+    </header>
+    
+    <div class="wrap">
+        <!-- MODERN ACCOUNT OVERVIEW -->
+        <section class="net" aria-live="polite">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:1rem;">
+                <div>
+                    <small id="date" style="opacity:0.8;"></small>
+                    <h1 id="greeting" style="margin:.2rem 0 .5rem; font-size:1.5rem;"></h1>
+                    <small>Total balance <button class="eye" id="eye" aria-label="Hide balances"><i class="fa-solid fa-eye"></i></button></small>
+                    <div class="total" id="total" style="margin-top:0.2rem;">Loading…</div>
+                </div>
+                
+                <!-- TIER & LIMIT PROGRESS -->
+                <div style="background:rgba(255,255,255,0.15); padding:1.2rem; border-radius:16px; min-width:220px; backdrop-filter: blur(4px);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+                        <span style="font-weight:700; font-size:0.9rem;">Tier <span id="userTier">1</span></span>
+                        <span class="badge" style="background:#fff; color:var(--deep); font-size:0.7rem;" id="userStatus">Active</span>
+                    </div>
+                    <small style="display:block; margin-bottom:0.4rem; opacity:0.9;">Daily Transfer Limit</small>
+                    <div style="background:rgba(0,0,0,0.2); height:8px; border-radius:4px; overflow:hidden;">
+                        <div id="limitBar" style="height:100%; width:0%; background:#00CFC8; transition:width 0.5s;"></div>
+                    </div>
+                    <small style="display:block; margin-top:0.4rem; font-size:0.75rem; text-align:right;" id="limitText">$0 / $5,000</small>
+                </div>
+            </div>
+        </section>
+        
+        <div class="banner" id="statusBanner" hidden>This account is <b id="bannerStatus"></b>. You can view balances
+            and history, but transfers are blocked. <a href="support.html">Contact support</a> to resolve this.</div>
+            
+        <!-- MODERN ACCOUNT CARDS -->
+        <div class="grid" id="accountCards">
+            <article class="card" id="checkingCard">
+                <h3>Checking Account</h3>
+                <div class="bal" id="checkingBal"></div>
+                <dl>
+                    <dt>Account number</dt>
+                    <dd id="checkingNum"></dd>
+                </dl>
+            </article>
+            <article class="card" id="savingsCard">
+                <h3>Savings Account</h3>
+                <div class="bal" id="savingsBal"></div>
+                <dl>
+                    <dt>Account number</dt>
+                    <dd id="savingsNum"></dd>
+                </dl>
+            </article>
+        </div>
+        
+        <!-- MODERN ACTION GRID -->
+        <div class="actions" id="actions" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:0.8rem; margin-bottom:2rem;">
+            <button class="btn" id="openMove" style="display:flex; flex-direction:column; align-items:center; padding:1rem 0.5rem; gap:0.5rem;">
+                <i class="fa-solid fa-right-left" style="font-size:1.5rem;"></i> 
+                <span>Move Funds</span>
+            </button>
+            <!-- Banking buttons (Deposit, Transfer, Upgrade) are injected here by transactions.js -->
+        </div>
+        
+        <section class="card">
+            <h3 style="margin-top:0">Recent Activity</h3>
+            <ul class="tx" id="txList">
+                <li>Loading…</li>
+            </ul>
+        </section>
+    </div>
+    
+    <div class="modal" id="moveModal" role="dialog" aria-modal="true" aria-labelledby="mt">
+        <form class="card" id="moveForm">
+            <h3 id="mt">Move funds</h3>
+            <label class="field">From<select name="from">
+                    <option value="checking">Checking</option>
+                    <option value="savings">Savings</option>
+                </select></label>
+            <label class="field">To<select name="to">
+                    <option value="savings">Savings</option>
+                    <option value="checking">Checking</option>
+                </select></label>
+            <label class="field">Amount (USD)<input name="amount" type="number" min="0.01" step="0.01" required></label>
+            <p class="msg" id="moveMsg" role="alert"></p>
+            <button class="btn">Move funds</button> <button type="button" class="btn ghost"
+                id="closeMove">Cancel</button>
+        </form>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+    <script type="module" src="js/dashboard.js"></script>
+</body>
+
+</html>

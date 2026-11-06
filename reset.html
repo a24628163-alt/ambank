@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+    <title>Reset password | AmBank</title>
+</head>
+
+<body>
+    <main class="wrap" style="max-width:420px">
+        <form class="card" id="resetForm" hidden>
+            <h2 style="margin-top:0">Choose a new password</h2>
+            <label class="field">New password<input name="password" type="password" autocomplete="new-password"
+                    minlength="8" required></label>
+            <label class="field">Confirm password<input name="confirm" type="password" autocomplete="new-password"
+                    required></label>
+            <p class="msg" id="formMsg" role="alert"></p><button class="btn" style="width:100%">Update password</button>
+        </form>
+        <p class="msg" id="msg" role="alert">Checking your reset link…</p><a href="login.html">Back to sign in</a>
+    </main>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+    <script type="module" src="js/reset.js"></script>
+</body>
+
+</html>

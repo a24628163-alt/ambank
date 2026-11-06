@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+    <title>Open an account | AmBank</title>
+    <style>
+        /* Styling for the camera preview */
+        .camera-wrap { display: flex; flex-direction: column; align-items: center; margin-bottom: 1rem; gap: 10px; }
+        #video { width: 100%; max-width: 300px; border-radius: 12px; background: #000; display: none; }
+        #photo { width: 100%; max-width: 300px; border-radius: 12px; display: none; object-fit: cover; }
+        .camera-actions { display: flex; gap: 10px; }
+    </style>
+</head>
+
+<body>
+    <div class="auth">
+        <aside>
+            <h1>AmBank</h1>
+            <p>Open checking and savings accounts in minutes.</p>
+        </aside>
+        <main>
+            <form data-page="register" novalidate>
+                <h2>Open an account</h2>
+                <label class="field">Full name<input name="full_name" autocomplete="name" required></label>
+                <label class="field">Email<input name="email" type="email" autocomplete="email" required></label>
+                <label class="field">Phone number<input name="phone" type="tel" autocomplete="tel" required></label>
+                
+                <!-- NEW FIELDS START -->
+                <label class="field">Date of Birth (Must be 18+)
+                    <input name="dob" type="date" required max="2008-12-31" id="dobInput">
+                </label>
+                <label class="field">ID Number (SSN, Passport, etc.)<input name="id_number" type="text" required></label>
+                <label class="field">Occupation<input name="occupation" type="text" required></label>
+                <!-- NEW FIELDS END -->
+
+                <label class="field">Password<span class="pw"><input name="password" type="password"
+                            autocomplete="new-password" required><button type="button" aria-label="Show password"><i
+                                class="fa-solid fa-eye"></i></button></span></label>
+                <label class="field">Confirm password<span class="pw"><input name="confirm" type="password"
+                            autocomplete="new-password" required><button type="button" aria-label="Show password"><i
+                                class="fa-solid fa-eye"></i></button></span></label>
+
+                <!-- FACE CAPTURE SECTION -->
+                <div class="field" style="border: 1px solid var(--border); padding: 1rem; border-radius: 10px; text-align: center;">
+                    <p style="margin-top:0; font-weight: 600;">Identity Verification</p>
+                    <div class="camera-wrap">
+                        <video id="video" autoplay playsinline></video>
+                        <img id="photo" alt="Captured selfie">
+                    </div>
+                    <div class="camera-actions">
+                        <button type="button" class="btn ghost" id="startCamBtn" style="flex:1"><i class="fa-solid fa-camera"></i> Start Camera</button>
+                        <button type="button" class="btn" id="captureBtn" style="display:none; flex:1">Capture Face</button>
+                        <button type="button" class="btn ghost" id="retakeBtn" style="display:none; flex:1">Retake</button>
+                    </div>
+                </div>
+                <!-- END FACE CAPTURE SECTION -->
+
+                <p class="msg" id="msg" role="alert"></p>
+                <button class="btn" style="width:100%">Create account</button>
+                <p>Already a customer? <a href="login.html">Sign in</a></p>
+            </form>
+        </main>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+    <script type="module" src="js/auth.js"></script>
+</body>
+</html>
