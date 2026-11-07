@@ -38,7 +38,6 @@
             <span class="logo">AmBank Staff <span class="badge active" id="role"></span></span>
             
             <div style="display:flex; gap:0.5rem; align-items:center;">
-                <!-- NEW: Admin Notification Bell -->
                 <button class="btn ghost" id="adminBell" aria-label="Notifications" style="padding:0.5rem 0.8rem; position:relative;">
                     <i class="fa-solid fa-bell"></i>
                     <span id="adminBellCount" hidden style="position:absolute; top:-5px; right:-5px; background:var(--bad); color:white; border-radius:50%; padding:2px 6px; font-size:10px;"></span>
@@ -61,6 +60,19 @@
             <section class="panel" id="tab-customers">
                 <div class="cols">
                     <div class="stack">
+                        
+                        <!-- NEW: PENDING APPROVALS SECTION -->
+                        <section class="card" style="border: 2px solid var(--aqua);">
+                            <h3 style="margin-top:0; display:flex; justify-content:space-between; align-items:center;">
+                                Pending Approvals
+                                <span class="badge open" id="pendingCount" style="display:none;">0</span>
+                            </h3>
+                            <ul class="list" id="pendingList">
+                                <li>Checking for pending users...</li>
+                            </ul>
+                        </section>
+
+                        <!-- SEARCH FORM -->
                         <form class="card" id="searchForm">
                             <label class="field">Account number, email or customer ID<input name="q" minlength="3" required></label>
                             <button class="btn">Search</button>

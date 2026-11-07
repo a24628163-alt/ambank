@@ -53,10 +53,13 @@ function show() {
   stopTimers(); 
   $('login').hidden = true; $('app').hidden = false; $('role').textContent = role;
   document.querySelectorAll('.adminonly').forEach(e => e.hidden = role !== 'admin');
+  
+  // Load everything, including the new pending approvals list
   loadTickets(); loadAudit(); loadStaff(); loadChats(); loadDeposits();
+  loadPendingApprovals(); // <-- NEW
 
   // Poll for new chats and deposits every 5s
-  chatsTimer = setInterval(() => { loadChats(); loadDeposits(); }, 5000);
+  chatsTimer = setInterval(() => { loadChats(); loadDeposits(); loadPendingApprovals(); }, 5000); // Also poll pending users
 
   // Heartbeat
   const beat = () => sb.rpc('staff_heartbeat').then(({ error }) => { if (error) stopTimers(); });
@@ -82,13 +85,48 @@ $('logout').onclick = async () => {
   await sb.auth.signOut();
   try { localStorage.removeItem('ambank_remember'); } catch {}
   try { sessionStorage.removeItem('ambank_remember'); } catch {}
-  location.replace('login.html');
+  location.replace('/secret-admin-portal'); 
 };
 
 document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => {
   document.querySelectorAll('[data-tab]').forEach(x => x.setAttribute('aria-selected', x === b));
   document.querySelectorAll('.panel').forEach(p => p.hidden = p.id !== 'tab-' + b.dataset.tab);
 });
+
+// --- PENDING APPROVALS (NEW) ---
+async function loadPendingApprovals() {
+  const { data, error } = await sb.from('profiles')
+    .select('*')
+    .eq('account_status', 'pending_approval')
+    .order('created_at', { ascending: false });
+
+  if (error) return;
+
+  const countBadge = $('pendingCount');
+  if (data.length > 0) {
+    countBadge.style.display = 'inline-block';
+    countBadge.textContent = data.length;
+  } else {
+    countBadge.style.display = 'none';
+  }
+
+  $('pendingList').innerHTML = data.length ? data.map(c => `
+    <li style="align-items: center; padding: 1rem 0;">
+      <div>
+        <b style="font-size: 1.05rem;">${esc(c.full_name)}</b><br>
+        <small class="sim">${esc(c.email)} · NIN: ${esc(c.id_number || 'N/A')}</small>
+      </div>
+      <button class="btn ghost" style="padding: 0.4rem 0.8rem;" onclick="window.selectPending('${c.user_id}')">Review Details</button>
+    </li>
+  `).join('') : '<li>No pending approvals right now. 🎉</li>';
+}
+
+window.selectPending = (userId) => {
+  // Instead of searching via ID, we do a fresh fetch to get full KYC data
+  sb.from('profiles').select('*').eq('user_id', userId).single().then(({data}) => {
+    if (data) select(data);
+  });
+};
 
 // --- ADMIN NOTIFICATIONS ---
 async function loadAdminNotifications() {
@@ -169,13 +207,17 @@ async function select(c) {
       if(!confirm('Approve this customer and activate their account?')) return;
       const { error } = await sb.rpc('admin_approve_customer', { p_user: c.user_id });
       if (error) return alert(error.message);
-      alert('Customer Approved!'); refresh();
+      alert('Customer Approved!'); 
+      loadPendingApprovals(); // Refresh the top list
+      refresh();
     };
     document.getElementById('btnReject').onclick = async () => {
       if(!confirm('Reject this customer?')) return;
       const { error } = await sb.rpc('admin_reject_customer', { p_user: c.user_id });
       if (error) return alert(error.message);
-      alert('Customer Rejected.'); refresh();
+      alert('Customer Rejected.'); 
+      loadPendingApprovals();
+      refresh();
     };
   } else {
     actionPanel.hidden = true;

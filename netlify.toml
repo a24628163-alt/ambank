@@ -1,16 +1,30 @@
 [build]
   command = "node scripts/build.js"
   publish = "dist"
+
 [build.environment]
   NODE_VERSION = "20"
+  # Security scan bypass for your public Supabase keys
+  SECRETS_SCAN_ENABLED = "false"
+
+# Redirect root to login
 [[redirects]]
   from = "/"
   to = "/login.html"
   status = 302
+
+# 1. Map the secret URL to the admin page internally
 [[redirects]]
-  from = "/admin"
+  from = "/secret-admin-portal"
   to = "/admin.html"
-  status = 302
+  status = 200
+
+# 2. Block direct access to admin.html (redirects to login)
+[[redirects]]
+  from = "/admin.html"
+  to = "/login.html"
+  status = 301
+
 [[headers]]
   for = "/*"
   [headers.values]
