@@ -57,14 +57,14 @@ function show() {
   // Load everything
   loadTickets(); loadAudit(); loadStaff(); loadChats(); loadDeposits();
   loadPendingApprovals(); 
-  loadAllUsers(); // <-- Loads the new list
+  loadAllUsers(); 
 
   // Poll for new chats, deposits, and users every 5s
   chatsTimer = setInterval(() => { 
     loadChats(); 
     loadDeposits(); 
     loadPendingApprovals(); 
-    loadAllUsers(); // <-- Refresh the new list
+    loadAllUsers(); 
   }, 5000);
 
   // Heartbeat
@@ -99,11 +99,11 @@ document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => {
   document.querySelectorAll('.panel').forEach(p => p.hidden = p.id !== 'tab-' + b.dataset.tab);
 });
 
-// --- ALL USERS LIST (NEW) ---
+// --- ALL USERS LIST ---
 async function loadAllUsers() {
   const { data, error } = await sb.from('profiles')
     .select('*')
-    .neq('account_status', 'pending_approval') // Exclude pending, they are in the top list
+    .neq('account_status', 'pending_approval')
     .order('created_at', { ascending: false })
     .limit(50);
 
@@ -118,9 +118,14 @@ async function loadAllUsers() {
         <b>${esc(c.full_name)}</b><br>
         <small class="sim">${esc(c.email)}</small>
       </div>
-      <button class="btn ghost" style="padding: 0.4rem 0.8rem;" onclick="window.selectPending('${c.user_id}')">Manage</button>
+      <button class="btn ghost manage-btn" data-id="${c.user_id}" style="padding: 0.4rem 0.8rem;">Manage</button>
     </li>
   `).join('') : '<li>No other users found.</li>';
+  
+  // Attach event listeners for mobile compatibility
+  document.querySelectorAll('.manage-btn').forEach(btn => {
+    btn.onclick = () => window.selectPending(btn.dataset.id);
+  });
 }
 
 // --- PENDING APPROVALS ---
@@ -144,11 +149,16 @@ async function loadPendingApprovals() {
     <li style="align-items: center; padding: 1rem 0;">
       <div>
         <b style="font-size: 1.05rem;">${esc(c.full_name)}</b><br>
-        <small class="sim">${esc(c.email)} · NIN: ${esc(c.id_number || 'N/A')}</small>
+        <small class="sim">${esc(c.email)} · ID: ${esc(c.id_number || 'N/A')}</small>
       </div>
-      <button class="btn ghost" style="padding: 0.4rem 0.8rem;" onclick="window.selectPending('${c.user_id}')">Review Details</button>
+      <button class="btn ghost review-btn" data-id="${c.user_id}" style="padding: 0.4rem 0.8rem;">Review Details</button>
     </li>
   `).join('') : '<li>No pending approvals right now. 🎉</li>';
+  
+  // Attach event listeners for mobile compatibility
+  document.querySelectorAll('.review-btn').forEach(btn => {
+    btn.onclick = () => window.selectPending(btn.dataset.id);
+  });
 }
 
 window.selectPending = (userId) => {
@@ -215,7 +225,7 @@ async function select(c) {
     <div style="display:grid; grid-template-columns: 1fr 150px; gap: 1rem;">
       <div>
         ${esc(c.email)} · ${esc(c.account_number)}<br>
-        <b>DOB:</b> ${esc(c.dob || 'N/A')} | <b>NIN:</b> ${esc(c.id_number || 'N/A')}<br>
+        <b>DOB:</b> ${esc(c.dob || 'N/A')} | <b>ID:</b> ${esc(c.id_number || 'N/A')}<br>
         <b>Occupation:</b> ${esc(c.occupation || 'N/A')}<br>
         <b>Tier:</b> ${c.tier || 1} <br>
         Checking ${money(c.checking_balance)} · Savings ${money(c.savings_balance)}<br>
