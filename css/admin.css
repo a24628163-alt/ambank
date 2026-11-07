@@ -1,4 +1,91 @@
-.cols{display:grid;grid-template-columns:minmax(260px,1fr) 2fr;gap:1rem;align-items:start}
-@media(max-width:800px){.cols{grid-template-columns:1fr}}
-.tabs{display:flex;gap:.5rem;margin-bottom:1rem;flex-wrap:wrap}.tabs .btn[aria-selected=true]{background:var(--deep);color:#fff}
-.stack>*{margin-bottom:1rem}.inline{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.6rem}
+.cols {
+    display: grid;
+    grid-template-columns: minmax(260px, 1fr) 2fr;
+    gap: 1rem;
+    align-items: start
+}
+
+.tabs {
+    display: flex;
+    gap: .5rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap
+}
+
+.tabs .btn[aria-selected=true] {
+    background: var(--deep);
+    color: #fff
+}
+
+.stack>* {
+    margin-bottom: 1rem
+}
+
+.inline {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: .6rem
+}
+
+/* --- ADMIN RESPONSIVE FIXES --- */
+
+/* 1. Mobile (iPhone 6, SE, etc. - max-width: 800px) */
+@media (max-width: 800px) {
+    .cols { 
+        grid-template-columns: 1fr; /* Stack the lists on top of each other */
+    }
+    
+    .tabs {
+        gap: 0.4rem;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        overflow-x: auto; /* Allow horizontal scrolling for tabs */
+        flex-wrap: nowrap;
+        white-space: nowrap;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .tabs .btn {
+        padding: 0.5rem 0.8rem;
+        font-size: 0.85rem;
+    }
+
+    /* Fix the detail grid (Photo + Info) on mobile */
+    .user-detail-grid {
+        grid-template-columns: 1fr !important; 
+        text-align: center;
+    }
+    
+    .user-detail-grid img {
+        width: 100px !important;
+        height: 100px !important;
+        margin: 0 auto;
+    }
+
+    /* Adjust the inline forms for mobile */
+    .inline { 
+        grid-template-columns: 1fr; 
+    }
+
+    /* Fix the admin header on small screens */
+    header.top {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+}
+
+/* 2. Ultra-Wide & 4K (min-width: 1600px) */
+@media (min-width: 1600px) {
+    .wrap {
+        max-width: 1400px;
+    }
+    
+    .cols {
+        grid-template-columns: 400px 1fr; /* Make the left list wider */
+    }
+    
+    .tabs .btn {
+        font-size: 1rem;
+        padding: 0.8rem 1.5rem;
+    }
+}

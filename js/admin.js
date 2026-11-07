@@ -222,7 +222,7 @@ async function select(c) {
     : `<div style="width:150px; height:150px; background:var(--bg); display:flex; align-items:center; justify-content:center; border-radius:10px; font-size:12px; color:var(--muted); margin-top:10px;">No Photo</div>`;
 
   $('dInfo').innerHTML = `
-    <div style="display:grid; grid-template-columns: 1fr 150px; gap: 1rem;">
+    <div class="user-detail-grid" style="display:grid; grid-template-columns: 1fr 150px; gap: 1rem;">
       <div>
         ${esc(c.email)} · ${esc(c.account_number)}<br>
         <b>DOB:</b> ${esc(c.dob || 'N/A')} | <b>ID:</b> ${esc(c.id_number || 'N/A')}<br>
