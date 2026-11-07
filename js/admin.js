@@ -54,12 +54,18 @@ function show() {
   $('login').hidden = true; $('app').hidden = false; $('role').textContent = role;
   document.querySelectorAll('.adminonly').forEach(e => e.hidden = role !== 'admin');
   
-  // Load everything, including the new pending approvals list
+  // Load everything
   loadTickets(); loadAudit(); loadStaff(); loadChats(); loadDeposits();
-  loadPendingApprovals(); // <-- NEW
+  loadPendingApprovals(); 
+  loadAllUsers(); // <-- Loads the new list
 
-  // Poll for new chats and deposits every 5s
-  chatsTimer = setInterval(() => { loadChats(); loadDeposits(); loadPendingApprovals(); }, 5000); // Also poll pending users
+  // Poll for new chats, deposits, and users every 5s
+  chatsTimer = setInterval(() => { 
+    loadChats(); 
+    loadDeposits(); 
+    loadPendingApprovals(); 
+    loadAllUsers(); // <-- Refresh the new list
+  }, 5000);
 
   // Heartbeat
   const beat = () => sb.rpc('staff_heartbeat').then(({ error }) => { if (error) stopTimers(); });
@@ -93,7 +99,31 @@ document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => {
   document.querySelectorAll('.panel').forEach(p => p.hidden = p.id !== 'tab-' + b.dataset.tab);
 });
 
-// --- PENDING APPROVALS (NEW) ---
+// --- ALL USERS LIST (NEW) ---
+async function loadAllUsers() {
+  const { data, error } = await sb.from('profiles')
+    .select('*')
+    .neq('account_status', 'pending_approval') // Exclude pending, they are in the top list
+    .order('created_at', { ascending: false })
+    .limit(50);
+
+  if (error) return;
+
+  const countBadge = $('allUsersCount');
+  if (countBadge) countBadge.textContent = data.length;
+
+  $('allUsersList').innerHTML = data.length ? data.map(c => `
+    <li style="align-items: center; padding: 0.8rem 0;">
+      <div>
+        <b>${esc(c.full_name)}</b><br>
+        <small class="sim">${esc(c.email)}</small>
+      </div>
+      <button class="btn ghost" style="padding: 0.4rem 0.8rem;" onclick="window.selectPending('${c.user_id}')">Manage</button>
+    </li>
+  `).join('') : '<li>No other users found.</li>';
+}
+
+// --- PENDING APPROVALS ---
 async function loadPendingApprovals() {
   const { data, error } = await sb.from('profiles')
     .select('*')
@@ -122,7 +152,6 @@ async function loadPendingApprovals() {
 }
 
 window.selectPending = (userId) => {
-  // Instead of searching via ID, we do a fresh fetch to get full KYC data
   sb.from('profiles').select('*').eq('user_id', userId).single().then(({data}) => {
     if (data) select(data);
   });
@@ -208,7 +237,8 @@ async function select(c) {
       const { error } = await sb.rpc('admin_approve_customer', { p_user: c.user_id });
       if (error) return alert(error.message);
       alert('Customer Approved!'); 
-      loadPendingApprovals(); // Refresh the top list
+      loadPendingApprovals(); 
+      loadAllUsers(); 
       refresh();
     };
     document.getElementById('btnReject').onclick = async () => {
@@ -217,6 +247,7 @@ async function select(c) {
       if (error) return alert(error.message);
       alert('Customer Rejected.'); 
       loadPendingApprovals();
+      loadAllUsers();
       refresh();
     };
   } else {

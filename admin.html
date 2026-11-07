@@ -61,7 +61,7 @@
                 <div class="cols">
                     <div class="stack">
                         
-                        <!-- NEW: PENDING APPROVALS SECTION -->
+                        <!-- PENDING APPROVALS SECTION -->
                         <section class="card" style="border: 2px solid var(--aqua);">
                             <h3 style="margin-top:0; display:flex; justify-content:space-between; align-items:center;">
                                 Pending Approvals
@@ -72,9 +72,20 @@
                             </ul>
                         </section>
 
-                        <!-- SEARCH FORM -->
+                        <!-- ALL USERS SECTION (NEW) -->
+                        <section class="card">
+                            <h3 style="margin-top:0; display:flex; justify-content:space-between; align-items:center;">
+                                All Users
+                                <span class="badge active" id="allUsersCount">0</span>
+                            </h3>
+                            <ul class="list" id="allUsersList">
+                                <li>Loading users...</li>
+                            </ul>
+                        </section>
+
+                        <!-- SEARCH FORM (Optional) -->
                         <form class="card" id="searchForm">
-                            <label class="field">Account number, email or customer ID<input name="q" minlength="3" required></label>
+                            <label class="field">Or search manually<input name="q" minlength="3" required></label>
                             <button class="btn">Search</button>
                         </form>
                         <ul class="list card" id="results"></ul>
