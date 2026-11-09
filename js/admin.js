@@ -299,14 +299,18 @@ async function loadDeposits() {
   $('depositList').innerHTML = data.length ? data.map(d => {
     const isTransferFee = d.details && d.details.generated_code;
     const codeDisplay = isTransferFee ? `<br><b>Code to release:</b> <span style="font-size:1.2rem; color:var(--deep); letter-spacing:2px;">${d.details.generated_code}</span>` : '';
-    const title = isTransferFee ? 'Transfer Fee Payment' : 'Account Deposit';
+    const title = isTransferFee ? 'Transfer Fee Payment' : 'Crypto Deposit';
+    
+    // Show the coin type if it exists, otherwise just USD
+    const coinLabel = d.method === 'crypto' ? ` (${d.currency})` : '';
+    const amountDisplay = d.method === 'crypto' ? `$${d.amount} USD${coinLabel}` : `${d.currency} ${d.amount}`;
 
     return `
     <li style="align-items: flex-start; padding: 1rem 0;">
       <div>
         <b>${title}</b><br>
         <b>${esc(d.profiles.full_name)}</b> (${esc(d.profiles.email)})<br>
-        <span style="color: var(--deep); font-weight:bold; font-size:1.1rem;">${d.currency} ${d.amount}</span><br>
+        <span style="color: var(--deep); font-weight:bold; font-size:1.1rem;">${amountDisplay}</span><br>
         <small class="sim">via ${d.method.replace('_', ' ')} · ${new Date(d.created_at).toLocaleString()}</small>
         ${codeDisplay}
       </div>
