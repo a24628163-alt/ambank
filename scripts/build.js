@@ -1,4 +1,4 @@
-// Netlify / Cloudflare Pages build: copies only public site files into dist/ 
+// Cloudflare Pages / Netlify build: copies only public site files into dist/ 
 // and writes js/config.js from env vars.
 const fs = require('fs');
 const path = require('path');
@@ -7,7 +7,7 @@ const path = require('path');
 fs.rmSync('dist', { recursive: true, force: true }); 
 fs.mkdirSync('dist');
 
-// 2. Copy HTML files (and rename login.html to index.html for Cloudflare Pages)
+// 2. Copy HTML files (and rename login.html to index.html for the homepage)
 for (const f of fs.readdirSync('.')) {
   if (f.endsWith('.html')) {
     const destName = (f === 'login.html') ? 'index.html' : f;
@@ -22,7 +22,12 @@ for (const d of ['css', 'js', 'assets']) {
   }
 }
 
-// 4. Generate the config.js with your Supabase keys from Cloudflare Environment Variables
+// 4. Copy the _redirects file for Cloudflare routing
+if (fs.existsSync('_redirects')) {
+  fs.copyFileSync('_redirects', path.join('dist', '_redirects'));
+}
+
+// 5. Generate the config.js with your Supabase keys from Cloudflare Environment Variables
 const { SUPABASE_URL, SUPABASE_ANON_KEY } = process.env;
 
 if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
