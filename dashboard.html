@@ -12,8 +12,8 @@
     <!-- jsPDF for downloadable receipts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     
-    <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="css/style.css?v=9">
+    <link rel="stylesheet" href="css/dashboard.css?v=9">
     <title>Dashboard | AmBank</title>
 </head>
 
@@ -96,6 +96,14 @@
                     <div style="display:flex; justify-content:space-between;"><span>SOL</span> <span id="balSol">0.0000</span></div>
                 </div>
             </article>
+
+            <!-- NEW: FOREIGN FIAT WALLETS -->
+            <article class="card" id="fiatWalletCard" style="display: none;">
+                <h3>Foreign Currency</h3>
+                <div class="bal" style="font-size: 0.95rem; display: flex; flex-direction: column; gap: 5px; font-weight: 600;" id="fiatWalletsList">
+                    <!-- Dynamic wallets will be injected here -->
+                </div>
+            </article>
         </div>
         
         <!-- MODERN ACTION GRID -->
@@ -134,7 +142,7 @@
     </div>
     
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-    <script type="module" src="js/dashboard.js"></script>
+    <script type="module" src="js/dashboard.js?v=9"></script>
 </body>
 
 </html>

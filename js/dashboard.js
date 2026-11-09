@@ -27,6 +27,26 @@ if (themeBtn) {
 }
 // --- END THEME TOGGLE ---
 
+// --- LOAD FIAT WALLETS ---
+async function loadFiatWallets() {
+  const { data, error } = await sb.from('user_wallets').select('*').gt('balance', 0);
+  const card = document.getElementById('fiatWalletCard');
+  const list = document.getElementById('fiatWalletsList');
+  
+  if (error || !data || data.length === 0) {
+    card.style.display = 'none';
+    return;
+  }
+
+  card.style.display = 'block';
+  list.innerHTML = data.map(w => `
+    <div style="display:flex; justify-content:space-between;">
+      <span>${w.currency}</span> 
+      <span>${Number(w.balance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+    </div>
+  `).join('');
+}
+
 function render() {
   const p = profile, h = new Date().getHours();
 
@@ -126,6 +146,9 @@ async function load() {
   $('limitBar').style.width = percentage + '%';
   $('limitBar').style.background = percentage > 90 ? '#ff6b6b' : '#00CFC8';
   $('limitText').textContent = `$${sentToday.toLocaleString()} / $${limit.toLocaleString()}`;
+
+  // Load Fiat Wallets
+  await loadFiatWallets();
 }
 
 // 1. Load the profile data first
