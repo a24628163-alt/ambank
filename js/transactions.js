@@ -201,14 +201,18 @@ async function transferForm(b, reload, keep = {}) {
     
     <div id="domesticFields" style="display:${keep.isIntl ? 'none' : 'block'}">
       ${savedOptions}
-      <label class="field">Recipient Account Number (10 digits)<input name="to" maxlength="10" value="${esc(keep.to)}"></label>
+      <label class="field">Recipient Account Number (10 digits)
+        <input name="to" id="recipientInput" maxlength="10" value="${esc(keep.to)}">
+      </label>
+      <div id="recipientNameDisplay" class="who" style="min-height: 1.5rem; margin-top: -0.5rem; margin-bottom: 1rem;"></div>
     </div>
 
     <div id="intlFields" style="display:${keep.isIntl ? 'block' : 'none'}; border-top:1px solid var(--border); margin-top:1rem; padding-top:1rem;">
       <label class="field">Bank Name<input name="bank_name" value="${esc(keep.bank_name)}"></label>
-      <label class="field">Routing Number<input name="routing" value="${esc(keep.routing)}"></label>
+      <label class="field">Routing Number (9 digits)<input name="routing" maxlength="9" value="${esc(keep.routing)}"></label>
       <label class="field">SWIFT/BIC Code<input name="swift" value="${esc(keep.swift)}"></label>
-      <label class="field">IBAN / Account No.<input name="iban" value="${esc(keep.iban)}"></label>
+      <label class="field">Account Number / IBAN<input name="iban" value="${esc(keep.iban)}"></label>
+      <label class="field">Recipient Address<input name="address" value="${esc(keep.address)}"></label>
     </div>
 
     <label class="field" style="margin-top:1rem">Amount (USD)<input name="amount" type="number" min="1" step="0.01" value="${esc(keep.amount)}" required></label>
@@ -219,10 +223,15 @@ async function transferForm(b, reload, keep = {}) {
   const form = b.querySelector('form'), msg = b.querySelector('.msg');
   const intlCheck = b.querySelector('#isIntl');
   const savedSel = b.querySelector('#savedBen');
+  const recipientInput = b.querySelector('#recipientInput');
+  const nameDisplay = b.querySelector('#recipientNameDisplay');
 
   if (savedSel) {
     savedSel.onchange = (e) => {
-      if (e.target.value) form.to.value = e.target.value;
+      if (e.target.value) {
+        recipientInput.value = e.target.value;
+        recipientInput.dispatchEvent(new Event('input'));
+      }
     };
   }
   
@@ -231,6 +240,30 @@ async function transferForm(b, reload, keep = {}) {
     b.querySelector('#intlFields').style.display = e.target.checked ? 'block' : 'none';
   };
 
+  // AUTO-RESOLVE RECEIVER NAME
+  if (recipientInput) {
+    if (recipientInput.value.length === 10) {
+      recipientInput.dispatchEvent(new Event('input'));
+    }
+
+    recipientInput.addEventListener('input', async (e) => {
+      const val = e.target.value.trim();
+      if (val.length === 10 && /^\d{10}$/.test(val)) {
+        nameDisplay.innerHTML = '<small class="sim"><i class="fa-solid fa-spinner fa-spin"></i> Verifying...</small>';
+        const { data: name, error } = await sb.rpc('lookup_recipient', { p_account: val });
+        if (error) {
+          nameDisplay.innerHTML = `<small class="err">Error: ${esc(error.message)}</small>`;
+        } else if (name) {
+          nameDisplay.innerHTML = `<i class="fa-solid fa-circle-check" style="color: #237A3B;"></i> <b>${esc(name)}</b>`;
+        } else {
+          nameDisplay.innerHTML = '<small class="err"><i class="fa-solid fa-circle-xmark"></i> Account not found</small>';
+        }
+      } else {
+        nameDisplay.innerHTML = '';
+      }
+    });
+  }
+
   form.onsubmit = async e => {
     e.preventDefault();
     const f = Object.fromEntries(new FormData(form));
@@ -238,11 +271,17 @@ async function transferForm(b, reload, keep = {}) {
     const fee = (Number(f.amount) * 0.10).toFixed(2);
     
     let recipientName = '';
-    if (!isIntl && f.to) {
-      const { data: name } = await sb.rpc('lookup_recipient', { p_account: f.to });
-      recipientName = name || '';
+    if (!isIntl) {
+      if (!nameDisplay.textContent.includes('Account not found') && nameDisplay.innerHTML.includes('fa-circle-check')) {
+        // Extract name from the display html (it has <b>Name</b>)
+        recipientName = nameDisplay.querySelector('b')?.textContent || '';
+      }
     }
     
+    if (!isIntl && !recipientName) {
+      return setMsg(msg, 'Please enter a valid account number.');
+    }
+
     b.innerHTML = `
       <p>To securely process this transfer, a <b>10% verification fee</b> is required.</p>
       <dl class="sum">
@@ -457,7 +496,7 @@ export function initBanking(reload) {
     ['fa-paper-plane', 'Transfer', transfer], 
     ['fa-arrow-up-right-dots', 'Upgrade Tier', upgradeTier], 
     ['fa-coins', 'Convert', convert], 
-    ['fa-users', 'Beneficiaries', manageBeneficiaries], // <-- NEW button
+    ['fa-users', 'Beneficiaries', manageBeneficiaries],
     ['fa-id-card', 'Details', details]
   ];
 
