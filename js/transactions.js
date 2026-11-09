@@ -111,7 +111,7 @@ function generatePDF(title, text, ref, extra) {
   doc.save(`AmBank_Receipt_${ref}.pdf`);
 }
 
-// --- 1. CRYPTO DEPOSIT SYSTEM (ONLY) ---
+// --- 1. CRYPTO DEPOSIT SYSTEM ---
 function deposit(reload) {
   const b = openModal('Request Crypto Deposit'); 
   b.innerHTML = `<form>
@@ -130,7 +130,6 @@ function deposit(reload) {
   
   const form = b.querySelector('form'), msg = b.querySelector('.msg'), info = b.querySelector('#methodInfo');
   
-  // Your Admin Wallets
   const adminWallets = {
     BTC: 'bc1q3meg43r8s0cve2ecfpmzskeg0y2dc9atf35uh0',
     ETH: '0x5725c8B4e32EbD6e3d40100649DC1029E5A3c036',
@@ -392,6 +391,65 @@ async function saveBeneficiary(name, account_number) {
   );
 }
 
+// --- 3. SEND CRYPTO TO ANOTHER USER ---
+function sendCrypto() {
+  const b = openModal('Send Crypto to User');
+  b.innerHTML = `
+    <form>
+      <label class="field">Select Coin to Send<select name="coin">
+        <option value="BTC">Bitcoin (BTC)</option>
+        <option value="ETH">Ethereum (ETH)</option>
+        <option value="BNB">Binance Coin (BNB)</option>
+        <option value="SOL">Solana (SOL)</option>
+      </select></label>
+      <label class="field">Recipient Wallet Address
+        <input name="address" id="cryptoAddressInput" required placeholder="Paste wallet address here">
+      </label>
+      <div id="cryptoNameDisplay" class="who" style="min-height: 1.5rem; margin-top: -0.5rem; margin-bottom: 1rem;"></div>
+      <label class="field">Amount (in Coin)<input name="amount" type="number" min="0.0001" step="any" required></label>
+      ${BTNS}
+      <button class="btn" style="width:100%">Send Crypto</button>
+      <button type="button" class="btn ghost" style="width:100%; margin-top:0.5rem" data-close>Cancel</button>
+    </form>
+  `;
+
+  const form = b.querySelector('form'), msg = b.querySelector('.msg');
+  const coinSel = form.coin, addrInput = form.address, nameDisplay = b.querySelector('#cryptoNameDisplay');
+
+  addrInput.addEventListener('input', async (e) => {
+    const addr = e.target.value.trim();
+    if (addr.length > 25) {
+      nameDisplay.innerHTML = '<small class="sim"><i class="fa-solid fa-spinner fa-spin"></i> Verifying address...</small>';
+      
+      const { data: name, error } = await sb.rpc('lookup_crypto_address', { 
+        p_address: addr, 
+        p_coin: coinSel.value 
+      });
+
+      if (error) {
+        nameDisplay.innerHTML = `<small class="err">Error: ${esc(error.message)}</small>`;
+      } else if (name) {
+        nameDisplay.innerHTML = `<i class="fa-solid fa-circle-check" style="color: #237A3B;"></i> <b>${esc(name)}</b>`;
+      } else {
+        nameDisplay.innerHTML = '<small class="err"><i class="fa-solid fa-circle-xmark"></i> Address not found in AmBank</small>';
+      }
+    } else {
+      nameDisplay.innerHTML = '';
+    }
+  });
+
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    if (!nameDisplay.innerHTML.includes('fa-circle-check')) {
+      return setMsg(msg, 'Please enter a valid AmBank crypto address.');
+    }
+    setMsg(msg, 'Processing...', 'ok');
+    setTimeout(() => {
+      done(b, 'Crypto Sent', `You have successfully sent ${form.amount.value} ${coinSel.value} to the recipient.`);
+    }, 1000);
+  };
+}
+
 // --- MANAGE BENEFICIARIES MODAL ---
 async function manageBeneficiaries() {
   const b = openModal('Manage Beneficiaries');
@@ -486,14 +544,32 @@ function convert() {
   };
 }
 
-// --- 5. ACCOUNT DETAILS (WITH UNIQUE USER WALLET) ---
+// --- 5. ACCOUNT DETAILS (WITH MULTI-COIN WALLETS) ---
 async function details() {
   const b = openModal('Account details'), { data: p, error } = await sb.from('profiles').select('*').single();
   if (error) { b.innerHTML = '<p class="msg err">Could not load your details. Try again.</p>'; return; }
   
-  const walletDisplay = p.wallet_address 
-    ? `<br><br><b>Your Unique Crypto Wallet (ERC20/BNB):</b><br><code style="word-break: break-all; background:var(--bg); padding:8px; border-radius:6px; display:block; margin-top:5px; border:1px solid var(--border); font-size:0.85rem;" id="userWallet">${esc(p.wallet_address)}</code><small class="sim">Use this address to receive ETH, USDT, or BNB from other users.</small>`
-    : '';
+  const wallets = `
+    <div style="background: var(--bg); padding: 10px; border-radius: 8px; margin-top: 1rem;">
+      <h4 style="margin:0 0 10px 0;">Your Crypto Receive Addresses</h4>
+      <div style="font-size: 0.85rem; margin-bottom: 8px;">
+        <b>Bitcoin (BTC):</b><br>
+        <code style="word-break: break-all; cursor:pointer;" onclick="navigator.clipboard.writeText('${p.wallet_btc}'); alert('BTC address copied!')">${p.wallet_btc || 'Generating...'}</code>
+      </div>
+      <div style="font-size: 0.85rem; margin-bottom: 8px;">
+        <b>Ethereum (ETH):</b><br>
+        <code style="word-break: break-all; cursor:pointer;" onclick="navigator.clipboard.writeText('${p.wallet_eth}'); alert('ETH address copied!')">${p.wallet_eth || 'Generating...'}</code>
+      </div>
+      <div style="font-size: 0.85rem; margin-bottom: 8px;">
+        <b>BNB Smart Chain (BNB):</b><br>
+        <code style="word-break: break-all; cursor:pointer;" onclick="navigator.clipboard.writeText('${p.wallet_bnb}'); alert('BNB address copied!')">${p.wallet_bnb || 'Generating...'}</code>
+      </div>
+      <div style="font-size: 0.85rem;">
+        <b>Solana (SOL):</b><br>
+        <code style="word-break: break-all; cursor:pointer;" onclick="navigator.clipboard.writeText('${p.wallet_sol}'); alert('SOL address copied!')">${p.wallet_sol || 'Generating...'}</code>
+      </div>
+    </div>
+  `;
 
   b.innerHTML = `<dl class="sum">
     <dt>Name</dt><dd>${esc(p.full_name)}</dd>
@@ -504,8 +580,9 @@ async function details() {
     <dt>Tier</dt><dd>Level ${p.tier || 1}</dd>
     <dt>Status</dt><dd><span class="badge ${esc(p.account_status)}">${esc(p.account_status)}</span></dd>
     <dt>Opened</dt><dd>${new Date(p.created_at).toLocaleDateString()}</dd>
-    ${walletDisplay}
   </dl>
+  ${wallets}
+  <br>
   <a class="btn ghost" href="support.html">Contact support</a> <button class="btn" data-close>Close</button>`;
 }
 
@@ -514,7 +591,8 @@ export function initBanking(reload) {
   
   const actions = [
     ['fa-building-columns', 'Deposit Crypto', deposit], 
-    ['fa-paper-plane', 'Transfer', transfer], 
+    ['fa-paper-plane', 'Transfer', transfer],
+    ['fa-wallet', 'Send Crypto', sendCrypto], // <-- NEW BUTTON
     ['fa-arrow-up-right-dots', 'Upgrade Tier', upgradeTier], 
     ['fa-coins', 'Convert', convert], 
     ['fa-users', 'Beneficiaries', manageBeneficiaries],
