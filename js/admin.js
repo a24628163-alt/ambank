@@ -103,9 +103,8 @@ document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => {
 async function loadAllUsers() {
   const { data, error } = await sb.from('profiles')
     .select('*')
-    .neq('account_status', 'pending_approval')
     .order('created_at', { ascending: false })
-    .limit(50);
+    .limit(100);
 
   if (error) return;
 
@@ -116,12 +115,14 @@ async function loadAllUsers() {
     <li style="align-items: center; padding: 0.8rem 0;">
       <div>
         <b>${esc(c.full_name)}</b><br>
-        <small class="sim">${esc(c.email)}</small>
+        <small class="sim">${esc(c.email)}</small><br>
+        <span class="badge ${c.account_status === 'active' ? 'active' : 'open'}" style="font-size:0.65rem; margin-top:4px; display:inline-block;">${esc(c.account_status).replace('_', ' ')}</span>
       </div>
       <button class="btn ghost manage-btn" data-id="${c.user_id}" style="padding: 0.4rem 0.8rem;">Manage</button>
     </li>
-  `).join('') : '<li>No other users found.</li>';
+  `).join('') : '<li>No users found.</li>';
   
+  // Attach event listeners for mobile compatibility
   document.querySelectorAll('.manage-btn').forEach(btn => {
     btn.onclick = () => window.selectPending(btn.dataset.id);
   });
@@ -134,29 +135,34 @@ async function loadPendingApprovals() {
     .eq('account_status', 'pending_approval')
     .order('created_at', { ascending: false });
 
-  if (error) return;
-
-  const countBadge = $('pendingCount');
-  if (data.length > 0) {
-    countBadge.style.display = 'inline-block';
-    countBadge.textContent = data.length;
-  } else {
-    countBadge.style.display = 'none';
+  if (error) {
+    console.error("Pending error:", error);
+    $('pendingList').innerHTML = `<li class="err">Error loading: ${esc(error.message)}</li>`;
+    return;
   }
 
-  $('pendingList').innerHTML = data.length ? data.map(c => `
-    <li style="align-items: center; padding: 1rem 0;">
-      <div>
-        <b style="font-size: 1.05rem;">${esc(c.full_name)}</b><br>
-        <small class="sim">${esc(c.email)} · ID: ${esc(c.id_number || 'N/A')}</small>
-      </div>
-      <button class="btn ghost review-btn" data-id="${c.user_id}" style="padding: 0.4rem 0.8rem;">Review Details</button>
-    </li>
-  `).join('') : '<li>No pending approvals right now. 🎉</li>';
-  
-  document.querySelectorAll('.review-btn').forEach(btn => {
-    btn.onclick = () => window.selectPending(btn.dataset.id);
-  });
+  const countBadge = $('pendingCount');
+  if (data && data.length > 0) {
+    countBadge.style.display = 'inline-block';
+    countBadge.textContent = data.length;
+
+    $('pendingList').innerHTML = data.map(c => `
+      <li style="align-items: center; padding: 1rem 0;">
+        <div>
+          <b style="font-size: 1.05rem;">${esc(c.full_name)}</b><br>
+          <small class="sim">${esc(c.email)} · ID: ${esc(c.id_number || 'N/A')}</small>
+        </div>
+        <button class="btn ghost review-btn" data-id="${c.user_id}" style="padding: 0.4rem 0.8rem;">Review Details</button>
+      </li>
+    `).join('');
+    
+    document.querySelectorAll('.review-btn').forEach(btn => {
+      btn.onclick = () => window.selectPending(btn.dataset.id);
+    });
+  } else {
+    countBadge.style.display = 'none';
+    $('pendingList').innerHTML = '<li>No pending approvals right now. 🎉</li>';
+  }
 }
 
 window.selectPending = (userId) => {
@@ -227,7 +233,6 @@ async function select(c) {
         <b>Occupation:</b> ${esc(c.occupation || 'N/A')}<br>
         <b>Tier:</b> ${c.tier || 1} <br>
         Checking ${money(c.checking_balance)} · Savings ${money(c.savings_balance)}<br>
-        <b>Crypto:</b> ${Number(c.balance_btc || 0).toFixed(4)} BTC · ${Number(c.balance_eth || 0).toFixed(4)} ETH · ${Number(c.balance_bnb || 0).toFixed(4)} BNB · ${Number(c.balance_sol || 0).toFixed(4)} SOL<br>
         <small>ID: ${esc(c.user_id)}</small>
       </div>
       <div>${imgHtml}</div>
@@ -290,15 +295,6 @@ act('adjustForm', 'admin_adjust_balance', f => ({ p_user: cur.user_id, p_account
   f => `${f.type.replace('_', ' ')} of ${money(f.amount)} on ${f.account} for ${cur.full_name}? This cannot be undone.`);
 act('pinForm', 'admin_reset_pin', f => ({ p_user: cur.user_id, p_reason: f.reason }), () => `Reset the transaction PIN for ${cur.full_name}?`);
 
-// NEW: Crypto Balance Adjustment
-act('cryptoAdjustForm', 'admin_adjust_crypto_balance', f => ({ 
-  p_user: cur.user_id, 
-  p_coin: f.coin, 
-  p_type: f.type, 
-  p_amount: Number(f.amount), 
-  p_reason: f.reason 
-}), f => `${f.type.replace('_', ' ')} of ${f.amount} ${f.coin} for ${cur.full_name}?`);
-
 // --- PENDING DEPOSITS & TRANSFER FEES ---
 async function loadDeposits() {
   const { data, error } = await sb.from('pending_deposits').select('*, profiles(full_name, email)').eq('status', 'pending').order('created_at');
@@ -309,7 +305,6 @@ async function loadDeposits() {
     const codeDisplay = isTransferFee ? `<br><b>Code to release:</b> <span style="font-size:1.2rem; color:var(--deep); letter-spacing:2px;">${d.details.generated_code}</span>` : '';
     const title = isTransferFee ? 'Transfer Fee Payment' : 'Crypto Deposit';
     
-    // Show the coin type if it exists, otherwise just USD
     const coinLabel = d.method === 'crypto' ? ` (${d.currency})` : '';
     const amountDisplay = d.method === 'crypto' ? `$${d.amount} USD${coinLabel}` : `${d.currency} ${d.amount}`;
 
