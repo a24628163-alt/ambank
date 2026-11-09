@@ -450,28 +450,28 @@ function sendCrypto() {
   };
 }
 
-// --- 4. RECEIVE CRYPTO MODAL (NEW) ---
+// --- 4. RECEIVE CRYPTO MODAL ---
 async function receiveCrypto() {
   const b = openModal('Receive Crypto');
   b.innerHTML = `<p class="sim">Loading your wallet addresses...</p>`;
   
-  const { data: p, error } = await sb.from('profiles').select('wallet_btc, wallet_eth, wallet_bnb, wallet_sol').single();
+  let { data: p, error } = await sb.from('profiles').select('wallet_btc, wallet_eth, wallet_bnb, wallet_sol').single();
   
   if (error) {
     b.innerHTML = `<p class="msg err">Could not load your wallets. Try again.</p><button class="btn" data-close>Close</button>`;
     return;
   }
 
-  const copyScript = (address, coin) => `
-    navigator.clipboard.writeText('${address}');
-    this.innerHTML = '<i class="fa-solid fa-check"></i> Copied!';
-    this.style.background = '#E6FAF9';
-    setTimeout(() => {
-      this.innerHTML = '<i class="fa-regular fa-copy"></i> Copy Address';
-      this.style.background = 'var(--light)';
-    }, 1500);
-    alert('${coin} address copied to clipboard!');
-  `;
+  // If the wallets are empty (for older accounts), generate them
+  if (!p.wallet_btc) {
+    b.innerHTML = `<p class="sim">Generating your unique wallet addresses...</p>`;
+    const userId = (await sb.auth.getUser()).data.user.id;
+    
+    await sb.rpc('generate_missing_wallets', { p_user_id: userId });
+    
+    const { data: updated } = await sb.from('profiles').select('wallet_btc, wallet_eth, wallet_bnb, wallet_sol').single();
+    p = updated;
+  }
 
   b.innerHTML = `
     <p class="sim" style="margin-bottom: 1rem;">Share these addresses with the sender so they can send crypto directly to your AmBank account.</p>
@@ -479,37 +479,53 @@ async function receiveCrypto() {
     <div style="background: var(--bg); padding: 15px; border-radius: 10px; margin-bottom: 10px; border: 1px solid var(--border);">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 5px;">
         <b>Bitcoin (BTC)</b>
-        <button class="btn ghost" style="padding: 0.2rem 0.6rem; font-size: 0.75rem;" onclick="${copyScript(p.wallet_btc, 'BTC')}"><i class="fa-regular fa-copy"></i> Copy Address</button>
+        <button class="btn ghost copy-btn" data-addr="${p.wallet_btc}" style="padding: 0.2rem 0.6rem; font-size: 0.75rem;"><i class="fa-regular fa-copy"></i> Copy</button>
       </div>
-      <code style="word-break: break-all; font-size: 0.85rem; display: block;">${p.wallet_btc || 'Generating...'}</code>
+      <code style="word-break: break-all; font-size: 0.85rem; display: block;">${p.wallet_btc || 'Error generating'}</code>
     </div>
 
     <div style="background: var(--bg); padding: 15px; border-radius: 10px; margin-bottom: 10px; border: 1px solid var(--border);">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 5px;">
         <b>Ethereum (ETH)</b>
-        <button class="btn ghost" style="padding: 0.2rem 0.6rem; font-size: 0.75rem;" onclick="${copyScript(p.wallet_eth, 'ETH')}"><i class="fa-regular fa-copy"></i> Copy Address</button>
+        <button class="btn ghost copy-btn" data-addr="${p.wallet_eth}" style="padding: 0.2rem 0.6rem; font-size: 0.75rem;"><i class="fa-regular fa-copy"></i> Copy</button>
       </div>
-      <code style="word-break: break-all; font-size: 0.85rem; display: block;">${p.wallet_eth || 'Generating...'}</code>
+      <code style="word-break: break-all; font-size: 0.85rem; display: block;">${p.wallet_eth || 'Error generating'}</code>
     </div>
 
     <div style="background: var(--bg); padding: 15px; border-radius: 10px; margin-bottom: 10px; border: 1px solid var(--border);">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 5px;">
         <b>Binance Coin (BNB)</b>
-        <button class="btn ghost" style="padding: 0.2rem 0.6rem; font-size: 0.75rem;" onclick="${copyScript(p.wallet_bnb, 'BNB')}"><i class="fa-regular fa-copy"></i> Copy Address</button>
+        <button class="btn ghost copy-btn" data-addr="${p.wallet_bnb}" style="padding: 0.2rem 0.6rem; font-size: 0.75rem;"><i class="fa-regular fa-copy"></i> Copy</button>
       </div>
-      <code style="word-break: break-all; font-size: 0.85rem; display: block;">${p.wallet_bnb || 'Generating...'}</code>
+      <code style="word-break: break-all; font-size: 0.85rem; display: block;">${p.wallet_bnb || 'Error generating'}</code>
     </div>
 
     <div style="background: var(--bg); padding: 15px; border-radius: 10px; margin-bottom: 15px; border: 1px solid var(--border);">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 5px;">
         <b>Solana (SOL)</b>
-        <button class="btn ghost" style="padding: 0.2rem 0.6rem; font-size: 0.75rem;" onclick="${copyScript(p.wallet_sol, 'SOL')}"><i class="fa-regular fa-copy"></i> Copy Address</button>
+        <button class="btn ghost copy-btn" data-addr="${p.wallet_sol}" style="padding: 0.2rem 0.6rem; font-size: 0.75rem;"><i class="fa-regular fa-copy"></i> Copy</button>
       </div>
-      <code style="word-break: break-all; font-size: 0.85rem; display: block;">${p.wallet_sol || 'Generating...'}</code>
+      <code style="word-break: break-all; font-size: 0.85rem; display: block;">${p.wallet_sol || 'Error generating'}</code>
     </div>
 
     <button class="btn" data-close style="width:100%">Close</button>
   `;
+
+  // Attach the click events cleanly
+  b.querySelectorAll('.copy-btn').forEach(btn => {
+    btn.onclick = () => {
+      const addr = btn.getAttribute('data-addr');
+      if (addr && addr !== 'null') {
+        navigator.clipboard.writeText(addr);
+        btn.innerHTML = '<i class="fa-solid fa-check"></i> Copied!';
+        btn.style.background = '#E6FAF9';
+        setTimeout(() => {
+          btn.innerHTML = '<i class="fa-regular fa-copy"></i> Copy';
+          btn.style.background = 'var(--light)';
+        }, 1500);
+      }
+    };
+  });
 }
 
 // --- MANAGE BENEFICIARIES MODAL ---
@@ -631,7 +647,7 @@ export function initBanking(reload) {
     ['fa-building-columns', 'Deposit Crypto', deposit], 
     ['fa-paper-plane', 'Transfer', transfer],
     ['fa-wallet', 'Send Crypto', sendCrypto],
-    ['fa-qrcode', 'Receive Crypto', receiveCrypto], // <-- NEW BUTTON
+    ['fa-qrcode', 'Receive Crypto', receiveCrypto],
     ['fa-arrow-up-right-dots', 'Upgrade Tier', upgradeTier], 
     ['fa-coins', 'Convert', convert], 
     ['fa-users', 'Beneficiaries', manageBeneficiaries],
