@@ -14,7 +14,6 @@ export function openModal(title) {
 }
 document.addEventListener('keydown', e => e.key === 'Escape' && document.querySelector('.modal.dyn')?.remove());
 
-// --- UPDATED DONE FUNCTION WITH PDF BUTTON ---
 const done = (b, title, text, ref, extra) => { 
   b.innerHTML = `
     <div style="text-align:center; margin-bottom:1rem;">
@@ -28,13 +27,9 @@ const done = (b, title, text, ref, extra) => {
       <button class="btn" data-close style="flex:1;">Done</button>
     </div>
   `;
-  
-  if (extra && ref) {
-    b.querySelector('#downloadReceipt').onclick = () => generatePDF(title, text, ref, extra);
-  }
+  if (extra && ref) b.querySelector('#downloadReceipt').onclick = () => generatePDF(title, text, ref, extra);
 };
 
-// --- PDF GENERATOR ---
 function generatePDF(title, text, ref, extra) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
@@ -116,60 +111,55 @@ function generatePDF(title, text, ref, extra) {
   doc.save(`AmBank_Receipt_${ref}.pdf`);
 }
 
-// --- 1. MANUAL DEPOSIT SYSTEM ---
+// --- 1. CRYPTO DEPOSIT SYSTEM (ONLY) ---
 function deposit(reload) {
-  const b = openModal('Request Deposit'); 
+  const b = openModal('Request Crypto Deposit'); 
   b.innerHTML = `<form>
-    <label class="field">Amount<input name="amount" type="number" min="10" step="0.01" required></label>
-    <label class="field">Currency<select name="currency">
-      <option value="USD">USD</option><option value="EUR">EUR</option><option value="GBP">GBP</option>
-      <option value="NGN">NGN</option><option value="CAD">CAD</option><option value="AUD">AUD</option>
+    <label class="field">Amount (USD)<input name="amount" type="number" min="10" step="0.01" required></label>
+    <label class="field">Select Crypto Coin<select name="currency">
+      <option value="BTC">Bitcoin (BTC)</option>
+      <option value="ETH">Ethereum (ETH)</option>
+      <option value="BNB">Binance Coin (BNB)</option>
+      <option value="SOL">Solana (SOL)</option>
     </select></label>
-    <label class="field">Method<select name="method">
-      <option value="bank_transfer">Bank Transfer</option>
-      <option value="crypto">Crypto</option>
-    </select></label>
-    <div id="methodInfo" class="sim" style="margin-bottom:1rem; background:var(--light); padding:10px; border-radius:5px; border:1px solid var(--border);">
-      Loading details...
+    
+    <div id="methodInfo" class="sim" style="margin-bottom:1rem; background:var(--light); padding:15px; border-radius:8px; border:1px solid var(--border); word-break: break-all;">
+      Loading address...
     </div>
-    ${BTNS}<button class="btn">Submit for Approval</button> <button type="button" class="btn ghost" data-close>Cancel</button></form>`;
+    ${BTNS}<button class="btn">I have sent the crypto (Submit)</button> <button type="button" class="btn ghost" data-close>Cancel</button></form>`;
   
   const form = b.querySelector('form'), msg = b.querySelector('.msg'), info = b.querySelector('#methodInfo');
   
-  const updateDetails = async () => {
-    const method = form.method.value;
-    const curr = form.currency.value;
+  // Your Admin Wallets
+  const adminWallets = {
+    BTC: 'bc1q3meg43r8s0cve2ecfpmzskeg0y2dc9atf35uh0',
+    ETH: '0x5725c8B4e32EbD6e3d40100649DC1029E5A3c036',
+    BNB: '0x5725c8B4e32EbD6e3d40100649DC1029E5A3c036',
+    SOL: 'HR2y8Cddb33yqc7EteDNuuBXd1U1jWp3Ped7eXq4apqn'
+  };
+
+  const updateDetails = () => {
+    const coin = form.currency.value;
+    const address = adminWallets[coin];
     
-    if (method === 'crypto') {
-      info.innerHTML = `<small class="sim">Fetching your wallet address...</small>`;
-      // Fetch the user's unique wallet address
-      const { data: p } = await sb.from('profiles').select('wallet_address').single();
-      const myAddress = p?.wallet_address || 'Generating... (Please contact support)';
-      
-      info.innerHTML = `
-        <b>Your Unique Deposit Address (USDT/Ethereum):</b><br>
-        <code style="word-break: break-all; background:#fff; padding:8px; border-radius:6px; display:block; margin-top:8px; border:1px solid #ccc; cursor:pointer; font-size:0.85rem;" id="copyWallet" title="Click to copy">${myAddress}</code>
-        <br><i>Send only USDT (ERC20) or ETH to this address. Your balance will be credited after Admin verification.</i>
-      `;
-      
-      // Add click-to-copy functionality
-      const copyBtn = document.getElementById('copyWallet');
-      if (copyBtn) {
-        copyBtn.onclick = () => {
-          navigator.clipboard.writeText(myAddress);
-          copyBtn.style.background = '#E6FAF9';
-          setTimeout(() => copyBtn.style.background = '#fff', 1000);
-          alert('Wallet address copied!');
-        };
-      }
-    } else {
-      const banks = { USD: 'AmBank US (Routing: 123456789)', EUR: 'AmBank EU (IBAN: DE89...)', GBP: 'AmBank UK (Sort: 20-00-00)', NGN: 'AmBank NG (Acct: 0123456789)', CAD: 'AmBank CA', AUD: 'AmBank AU' };
-      info.innerHTML = `<b>Bank Details (${curr}):</b><br>${banks[curr] || 'Contact support for details'}<br><br><i>Please use your registered email as the transfer reference.</i>`;
+    info.innerHTML = `
+      <b>Send ${coin} to this Admin Address:</b><br>
+      <code style="background:#fff; padding:8px; border-radius:6px; display:block; margin-top:8px; border:1px solid #ccc; cursor:pointer; font-size:0.85rem; color: var(--text);" id="copyWallet" title="Click to copy">${address}</code>
+      <br><i>After sending, click the submit button below. The admin will verify the transaction and credit your balance.</i>
+    `;
+    
+    const copyBtn = document.getElementById('copyWallet');
+    if (copyBtn) {
+      copyBtn.onclick = () => {
+        navigator.clipboard.writeText(address);
+        copyBtn.style.background = '#E6FAF9';
+        setTimeout(() => copyBtn.style.background = '#fff', 1000);
+        alert('Wallet address copied!');
+      };
     }
   };
   
   form.currency.onchange = updateDetails;
-  form.method.onchange = updateDetails;
   updateDetails();
 
   form.onsubmit = async e => {
@@ -181,17 +171,17 @@ function deposit(reload) {
       user_id: (await sb.auth.getUser()).data.user.id,
       amount: Number(f.amount), 
       currency: f.currency, 
-      method: f.method, 
-      details: { note: 'User submitted request' }
+      method: 'crypto', 
+      details: { note: `User sent ${f.currency} to Admin wallet` }
     });
     
     if(error) return setMsg(msg, friendly(error));
-    done(b, 'Deposit Requested', 'Please make the transfer using the details provided. An admin will verify and credit your account shortly.');
+    done(b, 'Crypto Deposit Submitted', `Your ${f.currency} deposit request has been submitted. The Admin will verify the transaction and credit your balance shortly.`);
     reload();
   };
 }
 
-// --- 2. PIN & TRANSFER (Manual 10% Fee Payment to Admin) ---
+// --- 2. PIN & TRANSFER ---
 function pinSetup(b, next) {
   b.innerHTML = `<p>Create a 4 or 6 digit PIN to approve transfers.</p>
     <form><label class="field">New PIN<input name="pin" type="password" maxlength="6" required></label>
@@ -261,7 +251,6 @@ async function transferForm(b, reload, keep = {}) {
     b.querySelector('#intlFields').style.display = e.target.checked ? 'block' : 'none';
   };
 
-  // AUTO-RESOLVE RECEIVER NAME
   if (recipientInput) {
     if (recipientInput.value.length === 10) {
       recipientInput.dispatchEvent(new Event('input'));
@@ -497,22 +486,34 @@ function convert() {
   };
 }
 
-// --- 5. ACCOUNT DETAILS ---
+// --- 5. ACCOUNT DETAILS (WITH UNIQUE USER WALLET) ---
 async function details() {
   const b = openModal('Account details'), { data: p, error } = await sb.from('profiles').select('*').single();
   if (error) { b.innerHTML = '<p class="msg err">Could not load your details. Try again.</p>'; return; }
-  b.innerHTML = `<dl class="sum"><dt>Name</dt><dd>${esc(p.full_name)}</dd><dt>Email</dt><dd>${esc(p.email)}</dd><dt>Phone</dt><dd>${esc(p.phone_number)}</dd>
-    <dt>Account number</dt><dd>${esc(p.account_number)}</dd><dt>Accounts</dt><dd>Checking (-C), Savings (-S)</dd>
+  
+  const walletDisplay = p.wallet_address 
+    ? `<br><br><b>Your Unique Crypto Wallet (ERC20/BNB):</b><br><code style="word-break: break-all; background:var(--bg); padding:8px; border-radius:6px; display:block; margin-top:5px; border:1px solid var(--border); font-size:0.85rem;" id="userWallet">${esc(p.wallet_address)}</code><small class="sim">Use this address to receive ETH, USDT, or BNB from other users.</small>`
+    : '';
+
+  b.innerHTML = `<dl class="sum">
+    <dt>Name</dt><dd>${esc(p.full_name)}</dd>
+    <dt>Email</dt><dd>${esc(p.email)}</dd>
+    <dt>Phone</dt><dd>${esc(p.phone_number)}</dd>
+    <dt>Account number</dt><dd>${esc(p.account_number)}</dd>
+    <dt>Accounts</dt><dd>Checking (-C), Savings (-S)</dd>
     <dt>Tier</dt><dd>Level ${p.tier || 1}</dd>
-    <dt>Status</dt><dd><span class="badge ${esc(p.account_status)}">${esc(p.account_status)}</span></dd><dt>Opened</dt><dd>${new Date(p.created_at).toLocaleDateString()}</dd></dl>
-    <a class="btn ghost" href="support.html">Contact support</a> <button class="btn" data-close>Close</button>`;
+    <dt>Status</dt><dd><span class="badge ${esc(p.account_status)}">${esc(p.account_status)}</span></dd>
+    <dt>Opened</dt><dd>${new Date(p.created_at).toLocaleDateString()}</dd>
+    ${walletDisplay}
+  </dl>
+  <a class="btn ghost" href="support.html">Contact support</a> <button class="btn" data-close>Close</button>`;
 }
 
 export function initBanking(reload) {
   const bar = document.getElementById('actions');
   
   const actions = [
-    ['fa-building-columns', 'Deposit', deposit], 
+    ['fa-building-columns', 'Deposit Crypto', deposit], 
     ['fa-paper-plane', 'Transfer', transfer], 
     ['fa-arrow-up-right-dots', 'Upgrade Tier', upgradeTier], 
     ['fa-coins', 'Convert', convert], 
