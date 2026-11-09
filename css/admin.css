@@ -29,17 +29,16 @@
 
 /* --- ADMIN RESPONSIVE FIXES --- */
 
-/* 1. Mobile (iPhone 6, SE, etc. - max-width: 800px) */
 @media (max-width: 800px) {
     .cols { 
-        grid-template-columns: 1fr; /* Stack the lists on top of each other */
+        grid-template-columns: 1fr; 
     }
     
     .tabs {
         gap: 0.4rem;
         margin-bottom: 1rem;
         padding-bottom: 0.5rem;
-        overflow-x: auto; /* Allow horizontal scrolling for tabs */
+        overflow-x: auto;
         flex-wrap: nowrap;
         white-space: nowrap;
         -webkit-overflow-scrolling: touch;
@@ -50,7 +49,6 @@
         font-size: 0.85rem;
     }
 
-    /* Fix the detail grid (Photo + Info) on mobile */
     .user-detail-grid {
         grid-template-columns: 1fr !important; 
         text-align: center;
@@ -62,26 +60,27 @@
         margin: 0 auto;
     }
 
-    /* Adjust the inline forms for mobile */
     .inline { 
         grid-template-columns: 1fr; 
     }
 
-    /* Fix the admin header on small screens */
     header.top {
         flex-wrap: wrap;
         gap: 0.5rem;
     }
+
+    .modal .card {
+        max-height: 85vh; /* FIX FOR MODAL SCROLLING */
+    }
 }
 
-/* 2. Ultra-Wide & 4K (min-width: 1600px) */
 @media (min-width: 1600px) {
     .wrap {
         max-width: 1400px;
     }
     
     .cols {
-        grid-template-columns: 400px 1fr; /* Make the left list wider */
+        grid-template-columns: 400px 1fr;
     }
     
     .tabs .btn {

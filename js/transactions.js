@@ -653,13 +653,13 @@ function upgradeTier(reload) {
   b.querySelector('#t3').onclick = () => upgrade(3);
 }
 
-// --- 6. CURRENCY & CRYPTO CONVERTER ---
+// --- 6. REAL CURRENCY & CRYPTO EXCHANGE ---
 const FIAT_CUR = ['USD','EUR','GBP','JPY','CAD','CHF','AUD','CNY','INR','NGN','BRL','ZAR','RUB','MXN','SGD','HKD','NZD','SEK','KRW','TRY'];
 const CRYPTO_CUR = ['BTC','ETH','BNB','SOL'];
 const ALL_CUR = [...FIAT_CUR, ...CRYPTO_CUR];
 
-function convert() {
-  const b = openModal('Currency & Crypto Converter'), 
+function convert(reload) {
+  const b = openModal('Currency & Crypto Exchange'), 
         opts = s => ALL_CUR.map(c => `<option ${c === s ? 'selected' : ''}>${c}</option>`).join('');
   
   b.innerHTML = `<form>
@@ -667,10 +667,12 @@ function convert() {
     <label class="field">From<select name="from">${opts('USD')}</select></label>
     <label class="field">To<select name="to">${opts('BTC')}</select></label>
     <div class="who" aria-live="polite" style="min-height: 3rem; font-size: 1.1rem;"></div>
-    ${BTNS}<button class="btn">Get Live Rate</button> <button type="button" class="btn ghost" data-close>Close</button></form>`;
+    ${BTNS}<button class="btn" id="quoteBtn">Get Quote</button> <button type="button" class="btn ghost" data-close>Close</button></form>`;
   
   const form = b.querySelector('form'), msg = b.querySelector('.msg'), out = b.querySelector('.who');
-  
+  const quoteBtn = b.querySelector('#quoteBtn');
+  let currentRate = 0;
+
   form.onsubmit = async e => {
     e.preventDefault(); 
     const f = Object.fromEntries(new FormData(form)); 
@@ -686,26 +688,47 @@ function convert() {
     const isToCrypto = CRYPTO_CUR.includes(to);
 
     try {
-      let finalRate = 0;
-      let sourceInfo = '';
-
       if (isFromCrypto || isToCrypto) {
         const { data, error } = await sb.functions.invoke('crypto-rates', { body: { from, to } });
         if (error || data.error) throw new Error(data?.error || 'Crypto rate unavailable');
-        finalRate = data.rate;
-        sourceInfo = `Live Crypto Price (${new Date().toLocaleTimeString()})`;
+        currentRate = data.rate;
       } else {
         const { data, error } = await sb.functions.invoke('rates', { body: { from, to } });
         if (error || data?.error) throw new Error('Exchange rate unavailable');
-        finalRate = data.rate;
-        sourceInfo = `${data.source}, ${data.date}`;
+        currentRate = data.rate;
       }
 
       setMsg(msg, '');
-      const converted = (amount * finalRate).toLocaleString(undefined, { maximumFractionDigits: 6 });
+      const converted = (amount * currentRate).toLocaleString(undefined, { maximumFractionDigits: 6 });
       
       out.innerHTML = `<b>${converted} ${to}</b><br>
-        <span class="sim">1 ${from} = ${finalRate.toLocaleString(undefined, { maximumFractionDigits: 6 })} ${to}<br>${sourceInfo}</span>`;
+        <span class="sim">1 ${from} = ${currentRate.toLocaleString(undefined, { maximumFractionDigits: 6 })} ${to}</span>`;
+        
+      quoteBtn.textContent = `Confirm Exchange (${from} → ${to})`;
+      quoteBtn.onclick = async (ev) => {
+        ev.preventDefault();
+        if (!confirm(`Exchange ${amount} ${from} to ${converted} ${to}?`)) return;
+        
+        quoteBtn.disabled = true;
+        quoteBtn.textContent = 'Processing...';
+        setMsg(msg, 'Exchanging funds...', 'ok');
+
+        const { error } = await sb.rpc('execute_currency_exchange', {
+          p_from_currency: from,
+          p_to_currency: to,
+          p_amount: amount,
+          p_rate: currentRate
+        });
+
+        if (error) {
+          quoteBtn.disabled = false;
+          quoteBtn.textContent = 'Get Quote';
+          return setMsg(msg, error.message);
+        }
+
+        done(b, 'Exchange Successful', `You exchanged ${amount} ${from} for ${converted} ${to}.`);
+        if (reload) reload();
+      };
         
     } catch (err) {
       setMsg(msg, err.message);
@@ -717,7 +740,6 @@ function convert() {
 async function settings(reload) {
   const b = openModal('Account Settings');
   
-  // Fetch fresh profile data
   const { data: p, error } = await sb.from('profiles').select('*').single();
   if (error) { b.innerHTML = '<p class="msg err">Could not load settings.</p>'; return; }
 
@@ -733,7 +755,6 @@ async function settings(reload) {
   const tabProfile = b.querySelector('#tab-profile');
   const tabSecurity = b.querySelector('#tab-security');
 
-  // --- PROFILE TAB ---
   const showProfile = () => {
     tabProfile.style.background = 'var(--deep)'; tabProfile.style.color = '#fff';
     tabSecurity.style.background = 'var(--light)'; tabSecurity.style.color = 'var(--deep)';
@@ -759,11 +780,10 @@ async function settings(reload) {
       
       setMsg(msg, 'Profile updated successfully!', 'ok');
       p.full_name = f.full_name; p.phone_number = f.phone;
-      if(reload) reload(); // Refresh dashboard
+      if(reload) reload(); 
     };
   };
 
-  // --- SECURITY TAB ---
   const showSecurity = () => {
     tabSecurity.style.background = 'var(--deep)'; tabSecurity.style.color = '#fff';
     tabProfile.style.background = 'var(--light)'; tabProfile.style.color = 'var(--deep)';
@@ -858,9 +878,9 @@ export function initBanking(reload) {
     ['fa-wallet', 'Send Crypto', sendCrypto],
     ['fa-qrcode', 'Receive Crypto', receiveCrypto], 
     ['fa-arrow-up-right-dots', 'Upgrade Tier', upgradeTier], 
-    ['fa-coins', 'Convert', convert], 
+    ['fa-coins', 'Convert', () => convert(reload)], // <-- Added reload
     ['fa-users', 'Beneficiaries', manageBeneficiaries],
-    ['fa-gear', 'Settings', settings], // <-- NEW BUTTON
+    ['fa-gear', 'Settings', settings],
     ['fa-id-card', 'Details', details]
   ];
 
