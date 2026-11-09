@@ -136,11 +136,32 @@ function deposit(reload) {
   
   const form = b.querySelector('form'), msg = b.querySelector('.msg'), info = b.querySelector('#methodInfo');
   
-  const updateDetails = () => {
+  const updateDetails = async () => {
     const method = form.method.value;
     const curr = form.currency.value;
+    
     if (method === 'crypto') {
-      info.innerHTML = `<b>Crypto Addresses:</b><br>BTC: bc1qxyz...<br>USDT (TRC20): Txyz...<br>ETH: 0xxyz...<br><br><i>Send only the equivalent amount. Admin will verify and credit your account.</i>`;
+      info.innerHTML = `<small class="sim">Fetching your wallet address...</small>`;
+      // Fetch the user's unique wallet address
+      const { data: p } = await sb.from('profiles').select('wallet_address').single();
+      const myAddress = p?.wallet_address || 'Generating... (Please contact support)';
+      
+      info.innerHTML = `
+        <b>Your Unique Deposit Address (USDT/Ethereum):</b><br>
+        <code style="word-break: break-all; background:#fff; padding:8px; border-radius:6px; display:block; margin-top:8px; border:1px solid #ccc; cursor:pointer; font-size:0.85rem;" id="copyWallet" title="Click to copy">${myAddress}</code>
+        <br><i>Send only USDT (ERC20) or ETH to this address. Your balance will be credited after Admin verification.</i>
+      `;
+      
+      // Add click-to-copy functionality
+      const copyBtn = document.getElementById('copyWallet');
+      if (copyBtn) {
+        copyBtn.onclick = () => {
+          navigator.clipboard.writeText(myAddress);
+          copyBtn.style.background = '#E6FAF9';
+          setTimeout(() => copyBtn.style.background = '#fff', 1000);
+          alert('Wallet address copied!');
+        };
+      }
     } else {
       const banks = { USD: 'AmBank US (Routing: 123456789)', EUR: 'AmBank EU (IBAN: DE89...)', GBP: 'AmBank UK (Sort: 20-00-00)', NGN: 'AmBank NG (Acct: 0123456789)', CAD: 'AmBank CA', AUD: 'AmBank AU' };
       info.innerHTML = `<b>Bank Details (${curr}):</b><br>${banks[curr] || 'Contact support for details'}<br><br><i>Please use your registered email as the transfer reference.</i>`;
@@ -273,7 +294,6 @@ async function transferForm(b, reload, keep = {}) {
     let recipientName = '';
     if (!isIntl) {
       if (!nameDisplay.textContent.includes('Account not found') && nameDisplay.innerHTML.includes('fa-circle-check')) {
-        // Extract name from the display html (it has <b>Name</b>)
         recipientName = nameDisplay.querySelector('b')?.textContent || '';
       }
     }
