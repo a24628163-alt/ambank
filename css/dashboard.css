@@ -155,7 +155,7 @@ header.top {
     justify-content: center;
     padding: 1rem;
     z-index: 10;
-    overflow-y: auto; /* FIX FOR MOBILE SCROLLING */
+    overflow-y: auto;
     -webkit-overflow-scrolling: touch;
 }
 
@@ -170,13 +170,13 @@ header.top {
 .modal .card {
     width: 100%;
     max-width: 420px;
-    max-height: 85vh; /* FIX FOR MOBILE SCROLLING */
+    max-height: 85vh; 
     display: flex;
     flex-direction: column;
 }
 
 .modal .body {
-    overflow-y: auto; /* FIX FOR MOBILE SCROLLING */
+    overflow-y: auto; 
     -webkit-overflow-scrolling: touch;
     padding-right: 5px;
 }
@@ -487,8 +487,36 @@ td {
         margin-bottom: 0.5rem;
     }
 
+    /* 2x2 Grid for Mobile Cards */
+    .grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 0.5rem;
+        margin: 1rem 0;
+    }
+    
+    .card {
+        padding: 0.8rem;
+        border-radius: 12px;
+    }
+
+    .card h3 {
+        font-size: 0.8rem;
+    }
+    
+    .card .bal {
+        font-size: 1.1rem;
+    }
+
+    /* Make crypto/fiat lists smaller in the grid */
+    #cryptoCard .bal, #fiatWalletCard .bal {
+        font-size: 0.7rem !important;
+        gap: 2px !important;
+    }
+
+    /* Hide savings card if we want to keep it extra clean, or just let it stack */
+    
     .actions {
-        grid-template-columns: repeat(2, 1fr) !important; 
+        grid-template-columns: repeat(3, 1fr) !important; 
     }
 
     .tx li {
