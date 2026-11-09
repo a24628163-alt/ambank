@@ -450,6 +450,68 @@ function sendCrypto() {
   };
 }
 
+// --- 4. RECEIVE CRYPTO MODAL (NEW) ---
+async function receiveCrypto() {
+  const b = openModal('Receive Crypto');
+  b.innerHTML = `<p class="sim">Loading your wallet addresses...</p>`;
+  
+  const { data: p, error } = await sb.from('profiles').select('wallet_btc, wallet_eth, wallet_bnb, wallet_sol').single();
+  
+  if (error) {
+    b.innerHTML = `<p class="msg err">Could not load your wallets. Try again.</p><button class="btn" data-close>Close</button>`;
+    return;
+  }
+
+  const copyScript = (address, coin) => `
+    navigator.clipboard.writeText('${address}');
+    this.innerHTML = '<i class="fa-solid fa-check"></i> Copied!';
+    this.style.background = '#E6FAF9';
+    setTimeout(() => {
+      this.innerHTML = '<i class="fa-regular fa-copy"></i> Copy Address';
+      this.style.background = 'var(--light)';
+    }, 1500);
+    alert('${coin} address copied to clipboard!');
+  `;
+
+  b.innerHTML = `
+    <p class="sim" style="margin-bottom: 1rem;">Share these addresses with the sender so they can send crypto directly to your AmBank account.</p>
+    
+    <div style="background: var(--bg); padding: 15px; border-radius: 10px; margin-bottom: 10px; border: 1px solid var(--border);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 5px;">
+        <b>Bitcoin (BTC)</b>
+        <button class="btn ghost" style="padding: 0.2rem 0.6rem; font-size: 0.75rem;" onclick="${copyScript(p.wallet_btc, 'BTC')}"><i class="fa-regular fa-copy"></i> Copy Address</button>
+      </div>
+      <code style="word-break: break-all; font-size: 0.85rem; display: block;">${p.wallet_btc || 'Generating...'}</code>
+    </div>
+
+    <div style="background: var(--bg); padding: 15px; border-radius: 10px; margin-bottom: 10px; border: 1px solid var(--border);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 5px;">
+        <b>Ethereum (ETH)</b>
+        <button class="btn ghost" style="padding: 0.2rem 0.6rem; font-size: 0.75rem;" onclick="${copyScript(p.wallet_eth, 'ETH')}"><i class="fa-regular fa-copy"></i> Copy Address</button>
+      </div>
+      <code style="word-break: break-all; font-size: 0.85rem; display: block;">${p.wallet_eth || 'Generating...'}</code>
+    </div>
+
+    <div style="background: var(--bg); padding: 15px; border-radius: 10px; margin-bottom: 10px; border: 1px solid var(--border);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 5px;">
+        <b>Binance Coin (BNB)</b>
+        <button class="btn ghost" style="padding: 0.2rem 0.6rem; font-size: 0.75rem;" onclick="${copyScript(p.wallet_bnb, 'BNB')}"><i class="fa-regular fa-copy"></i> Copy Address</button>
+      </div>
+      <code style="word-break: break-all; font-size: 0.85rem; display: block;">${p.wallet_bnb || 'Generating...'}</code>
+    </div>
+
+    <div style="background: var(--bg); padding: 15px; border-radius: 10px; margin-bottom: 15px; border: 1px solid var(--border);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 5px;">
+        <b>Solana (SOL)</b>
+        <button class="btn ghost" style="padding: 0.2rem 0.6rem; font-size: 0.75rem;" onclick="${copyScript(p.wallet_sol, 'SOL')}"><i class="fa-regular fa-copy"></i> Copy Address</button>
+      </div>
+      <code style="word-break: break-all; font-size: 0.85rem; display: block;">${p.wallet_sol || 'Generating...'}</code>
+    </div>
+
+    <button class="btn" data-close style="width:100%">Close</button>
+  `;
+}
+
 // --- MANAGE BENEFICIARIES MODAL ---
 async function manageBeneficiaries() {
   const b = openModal('Manage Beneficiaries');
@@ -496,7 +558,7 @@ async function manageBeneficiaries() {
   await loadList();
 }
 
-// --- 3. TIER UPGRADES ---
+// --- 5. TIER UPGRADES ---
 function upgradeTier(reload) {
   const b = openModal('Upgrade Account Tier');
   b.innerHTML = `
@@ -525,7 +587,7 @@ function upgradeTier(reload) {
   b.querySelector('#t3').onclick = () => upgrade(3);
 }
 
-// --- 4. CURRENCY CONVERTER ---
+// --- 6. CURRENCY CONVERTER ---
 const CUR = ['USD','EUR','GBP','JPY','CAD','CHF','AUD','CNY','INR','NGN','BRL','ZAR','RUB','MXN','SGD','HKD','NZD','SEK','KRW','TRY'];
 function convert() {
   const b = openModal('Currency converter'), opts = s => CUR.map(c => `<option ${c === s ? 'selected' : ''}>${c}</option>`).join('');
@@ -544,33 +606,11 @@ function convert() {
   };
 }
 
-// --- 5. ACCOUNT DETAILS (WITH MULTI-COIN WALLETS) ---
+// --- 7. ACCOUNT DETAILS ---
 async function details() {
   const b = openModal('Account details'), { data: p, error } = await sb.from('profiles').select('*').single();
   if (error) { b.innerHTML = '<p class="msg err">Could not load your details. Try again.</p>'; return; }
   
-  const wallets = `
-    <div style="background: var(--bg); padding: 10px; border-radius: 8px; margin-top: 1rem;">
-      <h4 style="margin:0 0 10px 0;">Your Crypto Receive Addresses</h4>
-      <div style="font-size: 0.85rem; margin-bottom: 8px;">
-        <b>Bitcoin (BTC):</b><br>
-        <code style="word-break: break-all; cursor:pointer;" onclick="navigator.clipboard.writeText('${p.wallet_btc}'); alert('BTC address copied!')">${p.wallet_btc || 'Generating...'}</code>
-      </div>
-      <div style="font-size: 0.85rem; margin-bottom: 8px;">
-        <b>Ethereum (ETH):</b><br>
-        <code style="word-break: break-all; cursor:pointer;" onclick="navigator.clipboard.writeText('${p.wallet_eth}'); alert('ETH address copied!')">${p.wallet_eth || 'Generating...'}</code>
-      </div>
-      <div style="font-size: 0.85rem; margin-bottom: 8px;">
-        <b>BNB Smart Chain (BNB):</b><br>
-        <code style="word-break: break-all; cursor:pointer;" onclick="navigator.clipboard.writeText('${p.wallet_bnb}'); alert('BNB address copied!')">${p.wallet_bnb || 'Generating...'}</code>
-      </div>
-      <div style="font-size: 0.85rem;">
-        <b>Solana (SOL):</b><br>
-        <code style="word-break: break-all; cursor:pointer;" onclick="navigator.clipboard.writeText('${p.wallet_sol}'); alert('SOL address copied!')">${p.wallet_sol || 'Generating...'}</code>
-      </div>
-    </div>
-  `;
-
   b.innerHTML = `<dl class="sum">
     <dt>Name</dt><dd>${esc(p.full_name)}</dd>
     <dt>Email</dt><dd>${esc(p.email)}</dd>
@@ -581,8 +621,6 @@ async function details() {
     <dt>Status</dt><dd><span class="badge ${esc(p.account_status)}">${esc(p.account_status)}</span></dd>
     <dt>Opened</dt><dd>${new Date(p.created_at).toLocaleDateString()}</dd>
   </dl>
-  ${wallets}
-  <br>
   <a class="btn ghost" href="support.html">Contact support</a> <button class="btn" data-close>Close</button>`;
 }
 
@@ -592,7 +630,8 @@ export function initBanking(reload) {
   const actions = [
     ['fa-building-columns', 'Deposit Crypto', deposit], 
     ['fa-paper-plane', 'Transfer', transfer],
-    ['fa-wallet', 'Send Crypto', sendCrypto], // <-- NEW BUTTON
+    ['fa-wallet', 'Send Crypto', sendCrypto],
+    ['fa-qrcode', 'Receive Crypto', receiveCrypto], // <-- NEW BUTTON
     ['fa-arrow-up-right-dots', 'Upgrade Tier', upgradeTier], 
     ['fa-coins', 'Convert', convert], 
     ['fa-users', 'Beneficiaries', manageBeneficiaries],
