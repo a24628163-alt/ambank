@@ -147,11 +147,9 @@ function deposit(reload) {
       <br><i>Fetching live ${coin} price...</i>
     `;
     
-    // Fetch live price
     const { data, error } = await sb.functions.invoke('crypto-rates', { body: { from: 'USD', to: coin } });
     
     if (!error && data?.rate) {
-       // Convert price (since 1 USD = X coin, we want 1 coin = Y USD)
        const price = (1 / data.rate).toLocaleString(undefined, { style: 'currency', currency: 'USD' });
        info.innerHTML = `
         <b>Send ${coin} to this Admin Address:</b><br>
@@ -429,6 +427,7 @@ function sendCrypto() {
       </label>
       <div id="cryptoNameDisplay" class="who" style="min-height: 1.5rem; margin-top: -0.5rem; margin-bottom: 1rem;"></div>
       <label class="field">Amount (in Coin)<input name="amount" type="number" min="0.0001" step="any" required></label>
+      <div id="usdEstimate" class="sim" style="margin-bottom: 1rem; font-weight: bold; color: var(--deep);"></div>
       ${BTNS}
       <button class="btn" style="width:100%">Send Crypto</button>
       <button type="button" class="btn ghost" style="width:100%; margin-top:0.5rem" data-close>Cancel</button>
@@ -436,39 +435,72 @@ function sendCrypto() {
   `;
 
   const form = b.querySelector('form'), msg = b.querySelector('.msg');
-  const coinSel = form.coin, addrInput = form.address, nameDisplay = b.querySelector('#cryptoNameDisplay');
+  const coinSel = form.coin, addrInput = form.address, amountInput = form.amount;
+  const nameDisplay = b.querySelector('#cryptoNameDisplay');
+  const usdDisplay = b.querySelector('#usdEstimate');
+  
+  let livePriceUSD = 0;
 
-  addrInput.addEventListener('input', async (e) => {
-    const addr = e.target.value.trim();
+  const updateQuote = async () => {
+    const addr = addrInput.value.trim();
+    const coin = coinSel.value;
+    const amount = Number(amountInput.value);
+
     if (addr.length > 25) {
-      nameDisplay.innerHTML = '<small class="sim"><i class="fa-solid fa-spinner fa-spin"></i> Verifying address...</small>';
+      nameDisplay.innerHTML = '<small class="sim"><i class="fa-solid fa-spinner fa-spin"></i> Verifying...</small>';
+      const { data: name, error } = await sb.rpc('lookup_crypto_address', { p_address: addr, p_coin: coin });
       
-      const { data: name, error } = await sb.rpc('lookup_crypto_address', { 
-        p_address: addr, 
-        p_coin: coinSel.value 
-      });
-
-      if (error) {
-        nameDisplay.innerHTML = `<small class="err">Error: ${esc(error.message)}</small>`;
-      } else if (name) {
-        nameDisplay.innerHTML = `<i class="fa-solid fa-circle-check" style="color: #237A3B;"></i> <b>${esc(name)}</b>`;
-      } else {
-        nameDisplay.innerHTML = '<small class="err"><i class="fa-solid fa-circle-xmark"></i> Address not found in AmBank</small>';
-      }
+      if (error) nameDisplay.innerHTML = `<small class="err">Error: ${esc(error.message)}</small>`;
+      else if (name) nameDisplay.innerHTML = `<i class="fa-solid fa-circle-check" style="color: #237A3B;"></i> <b>${esc(name)}</b>`;
+      else nameDisplay.innerHTML = '<small class="err"><i class="fa-solid fa-circle-xmark"></i> Address not found in AmBank</small>';
     } else {
       nameDisplay.innerHTML = '';
     }
-  });
+
+    const { data } = await sb.functions.invoke('crypto-rates', { body: { from: 'USD', to: coin } });
+    if (data && data.rate) {
+      livePriceUSD = 1 / data.rate; 
+      if (amount > 0) {
+        const totalUsd = (amount * livePriceUSD).toFixed(2);
+        usdDisplay.innerHTML = `Estimated Cost: $${totalUsd} USD (Will be deducted from Checking)`;
+      } else {
+        usdDisplay.innerHTML = `Live Price: 1 ${coin} = $${livePriceUSD.toLocaleString()}`;
+      }
+    }
+  };
+
+  coinSel.onchange = updateQuote;
+  addrInput.addEventListener('input', updateQuote);
+  amountInput.addEventListener('input', updateQuote);
 
   form.onsubmit = async (e) => {
     e.preventDefault();
+    
     if (!nameDisplay.innerHTML.includes('fa-circle-check')) {
       return setMsg(msg, 'Please enter a valid AmBank crypto address.');
     }
-    setMsg(msg, 'Processing...', 'ok');
-    setTimeout(() => {
-      done(b, 'Crypto Sent', `You have successfully sent ${form.amount.value} ${coinSel.value} to the recipient.`);
-    }, 1000);
+    if (livePriceUSD === 0) {
+      return setMsg(msg, 'Could not fetch live price. Try again.');
+    }
+
+    const amountCrypto = Number(amountInput.value);
+    const totalUsd = amountCrypto * livePriceUSD;
+
+    if (!confirm(`Send ${amountCrypto} ${coinSel.value} (worth $${totalUsd.toFixed(2)}) to this user?`)) return;
+
+    setMsg(msg, 'Processing transaction...', 'ok');
+    
+    const { error } = await sb.rpc('execute_crypto_transfer', {
+      p_sender_id: (await sb.auth.getUser()).data.user.id,
+      p_receiver_address: addrInput.value.trim(),
+      p_coin: coinSel.value,
+      p_amount: amountCrypto,
+      p_usd_value: totalUsd
+    });
+
+    if (error) return setMsg(msg, error.message);
+
+    done(b, 'Crypto Sent', `You successfully sent ${amountCrypto} ${coinSel.value} (worth $${totalUsd.toFixed(2)}) to ${nameDisplay.querySelector('b').textContent}.`);
   };
 }
 
@@ -484,7 +516,6 @@ async function receiveCrypto() {
     return;
   }
 
-  // If the wallets are empty (null), generate them for this existing user
   if (!p.wallet_btc) {
     b.innerHTML = `<p class="sim">Generating your unique wallet addresses...</p>`;
     const userId = (await sb.auth.getUser()).data.user.id;
@@ -531,7 +562,6 @@ async function receiveCrypto() {
     <button class="btn" data-close style="width:100%">Close</button>
   `;
 
-  // Attach the click events cleanly
   b.querySelectorAll('.copy-btn').forEach(btn => {
     btn.onclick = () => {
       const addr = btn.getAttribute('data-addr');
@@ -660,13 +690,11 @@ function convert() {
       let sourceInfo = '';
 
       if (isFromCrypto || isToCrypto) {
-        // Fetch from our new crypto-rates Edge Function
         const { data, error } = await sb.functions.invoke('crypto-rates', { body: { from, to } });
         if (error || data.error) throw new Error(data?.error || 'Crypto rate unavailable');
         finalRate = data.rate;
         sourceInfo = `Live Crypto Price (${new Date().toLocaleTimeString()})`;
       } else {
-        // Fiat to Fiat
         const { data, error } = await sb.functions.invoke('rates', { body: { from, to } });
         if (error || data?.error) throw new Error('Exchange rate unavailable');
         finalRate = data.rate;
@@ -685,7 +713,125 @@ function convert() {
   };
 }
 
-// --- 7. ACCOUNT DETAILS ---
+// --- 7. USER SETTINGS ---
+async function settings(reload) {
+  const b = openModal('Account Settings');
+  
+  // Fetch fresh profile data
+  const { data: p, error } = await sb.from('profiles').select('*').single();
+  if (error) { b.innerHTML = '<p class="msg err">Could not load settings.</p>'; return; }
+
+  b.innerHTML = `
+    <div style="display:flex; gap:10px; margin-bottom:1rem; border-bottom:1px solid var(--border); padding-bottom:10px; overflow-x:auto;">
+      <button class="btn ghost" id="tab-profile" style="flex:1;">Profile</button>
+      <button class="btn ghost" id="tab-security" style="flex:1;">Security</button>
+    </div>
+    <div id="settings-content"></div>
+  `;
+
+  const content = b.querySelector('#settings-content');
+  const tabProfile = b.querySelector('#tab-profile');
+  const tabSecurity = b.querySelector('#tab-security');
+
+  // --- PROFILE TAB ---
+  const showProfile = () => {
+    tabProfile.style.background = 'var(--deep)'; tabProfile.style.color = '#fff';
+    tabSecurity.style.background = 'var(--light)'; tabSecurity.style.color = 'var(--deep)';
+    
+    content.innerHTML = `
+      <form id="formProfile">
+        <label class="field">Full Name<input name="full_name" value="${esc(p.full_name)}" required></label>
+        <label class="field">Phone Number<input name="phone" value="${esc(p.phone_number)}" required></label>
+        <p class="sim">To change your email, use the Security tab.</p>
+        ${BTNS}
+        <button class="btn">Save Profile</button>
+      </form>
+    `;
+
+    content.querySelector('#formProfile').onsubmit = async e => {
+      e.preventDefault();
+      const f = Object.fromEntries(new FormData(e.target));
+      const msg = content.querySelector('.msg');
+      setMsg(msg, 'Saving...', 'ok');
+      
+      const { error } = await sb.rpc('update_profile', { p_full_name: f.full_name, p_phone: f.phone });
+      if (error) return setMsg(msg, error.message);
+      
+      setMsg(msg, 'Profile updated successfully!', 'ok');
+      p.full_name = f.full_name; p.phone_number = f.phone;
+      if(reload) reload(); // Refresh dashboard
+    };
+  };
+
+  // --- SECURITY TAB ---
+  const showSecurity = () => {
+    tabSecurity.style.background = 'var(--deep)'; tabSecurity.style.color = '#fff';
+    tabProfile.style.background = 'var(--light)'; tabProfile.style.color = 'var(--deep)';
+
+    content.innerHTML = `
+      <form id="formEmail" style="margin-bottom:2rem; border-bottom:1px solid var(--border); padding-bottom:1rem;">
+        <h4 style="margin-top:0">Change Email</h4>
+        <label class="field">New Email<input name="email" type="email" value="${esc(p.email)}" required></label>
+        ${BTNS}
+        <button class="btn">Update Email</button>
+      </form>
+
+      <form id="formPassword" style="margin-bottom:2rem; border-bottom:1px solid var(--border); padding-bottom:1rem;">
+        <h4 style="margin-top:0">Change Password</h4>
+        <label class="field">New Password<input name="password" type="password" minlength="8" required></label>
+        ${BTNS}
+        <button class="btn">Update Password</button>
+      </form>
+
+      <form id="formPin">
+        <h4 style="margin-top:0">Change Transaction PIN</h4>
+        <label class="field">Current PIN<input name="old_pin" type="password" maxlength="6" required></label>
+        <label class="field">New PIN (4 or 6 digits)<input name="new_pin" type="password" maxlength="6" required></label>
+        ${BTNS}
+        <button class="btn">Update PIN</button>
+      </form>
+    `;
+
+    content.querySelector('#formEmail').onsubmit = async e => {
+      e.preventDefault();
+      const f = Object.fromEntries(new FormData(e.target));
+      const msg = content.querySelector('#formEmail .msg');
+      setMsg(msg, 'Updating...', 'ok');
+      const { error } = await sb.auth.updateUser({ email: f.email });
+      if (error) return setMsg(msg, error.message);
+      setMsg(msg, 'Check your new email for a confirmation link!', 'ok');
+    };
+
+    content.querySelector('#formPassword').onsubmit = async e => {
+      e.preventDefault();
+      const f = Object.fromEntries(new FormData(e.target));
+      const msg = content.querySelector('#formPassword .msg');
+      setMsg(msg, 'Updating...', 'ok');
+      const { error } = await sb.auth.updateUser({ password: f.password });
+      if (error) return setMsg(msg, error.message);
+      setMsg(msg, 'Password updated successfully!', 'ok');
+      e.target.reset();
+    };
+
+    content.querySelector('#formPin').onsubmit = async e => {
+      e.preventDefault();
+      const f = Object.fromEntries(new FormData(e.target));
+      const msg = content.querySelector('#formPin .msg');
+      setMsg(msg, 'Updating...', 'ok');
+      const { error } = await sb.rpc('change_pin', { p_old_pin: f.old_pin, p_new_pin: f.new_pin });
+      if (error) return setMsg(msg, error.message);
+      setMsg(msg, 'Transaction PIN updated successfully!', 'ok');
+      e.target.reset();
+    };
+  };
+
+  tabProfile.onclick = showProfile;
+  tabSecurity.onclick = showSecurity;
+  
+  showProfile();
+}
+
+// --- 8. ACCOUNT DETAILS ---
 async function details() {
   const b = openModal('Account details'), { data: p, error } = await sb.from('profiles').select('*').single();
   if (error) { b.innerHTML = '<p class="msg err">Could not load your details. Try again.</p>'; return; }
@@ -714,6 +860,7 @@ export function initBanking(reload) {
     ['fa-arrow-up-right-dots', 'Upgrade Tier', upgradeTier], 
     ['fa-coins', 'Convert', convert], 
     ['fa-users', 'Beneficiaries', manageBeneficiaries],
+    ['fa-gear', 'Settings', settings], // <-- NEW BUTTON
     ['fa-id-card', 'Details', details]
   ];
 

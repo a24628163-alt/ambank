@@ -47,7 +47,7 @@ function render() {
     
     document.getElementById('logoutPending').onclick = async () => { 
       await sb.auth.signOut(); 
-      location.replace('login.html'); 
+      location.replace('index.html'); 
     };
     return; // Stop rendering
   }
@@ -60,6 +60,12 @@ function render() {
   $('savingsBal').textContent = fmt(p.savings_balance);
   $('checkingNum').textContent = p.account_number + '-C';
   $('savingsNum').textContent = p.account_number + '-S';
+  
+  // Render Crypto Balances
+  $('balBtc').textContent = Number(p.balance_btc || 0).toFixed(4);
+  $('balEth').textContent = Number(p.balance_eth || 0).toFixed(4);
+  $('balBnb').textContent = Number(p.balance_bnb || 0).toFixed(4);
+  $('balSol').textContent = Number(p.balance_sol || 0).toFixed(4);
   
   // Tier & Status
   $('userTier').textContent = p.tier || 1;
@@ -110,7 +116,7 @@ async function load() {
   const { data: todayTx } = await sb.from('transactions')
       .select('amount')
       .eq('user_id', profile.user_id)
-      .eq('transaction_type', 'transfer_out')
+      .in('transaction_type', ['transfer_out', 'crypto_send'])
       .gte('created_at', today + 'T00:00:00Z');
       
   const sentToday = todayTx?.reduce((sum, t) => sum + Number(t.amount), 0) || 0;
@@ -136,7 +142,7 @@ if (profile && profile.account_status !== 'pending_approval') {
 
   $('logout').onclick = async () => { 
     await sb.auth.signOut(); 
-    location.replace('login.html'); 
+    location.replace('index.html'); 
   };
 
   $('openMove').onclick = () => { 

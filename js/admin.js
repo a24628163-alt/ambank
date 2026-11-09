@@ -122,7 +122,6 @@ async function loadAllUsers() {
     </li>
   `).join('') : '<li>No other users found.</li>';
   
-  // Attach event listeners for mobile compatibility
   document.querySelectorAll('.manage-btn').forEach(btn => {
     btn.onclick = () => window.selectPending(btn.dataset.id);
   });
@@ -155,7 +154,6 @@ async function loadPendingApprovals() {
     </li>
   `).join('') : '<li>No pending approvals right now. 🎉</li>';
   
-  // Attach event listeners for mobile compatibility
   document.querySelectorAll('.review-btn').forEach(btn => {
     btn.onclick = () => window.selectPending(btn.dataset.id);
   });
@@ -229,6 +227,7 @@ async function select(c) {
         <b>Occupation:</b> ${esc(c.occupation || 'N/A')}<br>
         <b>Tier:</b> ${c.tier || 1} <br>
         Checking ${money(c.checking_balance)} · Savings ${money(c.savings_balance)}<br>
+        <b>Crypto:</b> ${Number(c.balance_btc || 0).toFixed(4)} BTC · ${Number(c.balance_eth || 0).toFixed(4)} ETH · ${Number(c.balance_bnb || 0).toFixed(4)} BNB · ${Number(c.balance_sol || 0).toFixed(4)} SOL<br>
         <small>ID: ${esc(c.user_id)}</small>
       </div>
       <div>${imgHtml}</div>
@@ -290,6 +289,15 @@ act('statusForm', 'admin_set_status', f => ({ p_user: cur.user_id, p_status: f.s
 act('adjustForm', 'admin_adjust_balance', f => ({ p_user: cur.user_id, p_account: f.account, p_type: f.type, p_amount: Number(f.amount), p_reason: f.reason, p_key: crypto.randomUUID() }),
   f => `${f.type.replace('_', ' ')} of ${money(f.amount)} on ${f.account} for ${cur.full_name}? This cannot be undone.`);
 act('pinForm', 'admin_reset_pin', f => ({ p_user: cur.user_id, p_reason: f.reason }), () => `Reset the transaction PIN for ${cur.full_name}?`);
+
+// NEW: Crypto Balance Adjustment
+act('cryptoAdjustForm', 'admin_adjust_crypto_balance', f => ({ 
+  p_user: cur.user_id, 
+  p_coin: f.coin, 
+  p_type: f.type, 
+  p_amount: Number(f.amount), 
+  p_reason: f.reason 
+}), f => `${f.type.replace('_', ' ')} of ${f.amount} ${f.coin} for ${cur.full_name}?`);
 
 // --- PENDING DEPOSITS & TRANSFER FEES ---
 async function loadDeposits() {

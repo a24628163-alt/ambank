@@ -72,7 +72,7 @@
                             </ul>
                         </section>
 
-                        <!-- ALL USERS SECTION (NEW) -->
+                        <!-- ALL USERS SECTION -->
                         <section class="card">
                             <h3 style="margin-top:0; display:flex; justify-content:space-between; align-items:center;">
                                 All Users
@@ -83,7 +83,7 @@
                             </ul>
                         </section>
 
-                        <!-- SEARCH FORM (Optional) -->
+                        <!-- SEARCH FORM -->
                         <form class="card" id="searchForm">
                             <label class="field">Or search manually<input name="q" minlength="3" required></label>
                             <button class="btn">Search</button>
@@ -118,8 +118,9 @@
                                     </select><input name="reason" placeholder="Reason" required minlength="5"></div>
                                 <p class="msg" role="alert"></p><button class="btn">Update status</button>
                             </form>
+                            
                             <form class="card" id="adjustForm">
-                                <h3 style="margin-top:0">Balance adjustment</h3>
+                                <h3 style="margin-top:0">Fiat Balance adjustment</h3>
                                 <div class="inline"><select name="account">
                                         <option value="checking">Checking</option>
                                         <option value="savings">Savings</option>
@@ -132,6 +133,28 @@
                                         minlength="5"></div>
                                 <p class="msg" role="alert"></p><button class="btn">Apply</button>
                             </form>
+
+                            <!-- NEW: CRYPTO BALANCE ADJUSTMENT -->
+                            <form class="card" id="cryptoAdjustForm" style="border: 1px solid var(--deep);">
+                                <h3 style="margin-top:0">Crypto Balance Adjustment</h3>
+                                <div class="inline">
+                                    <select name="coin">
+                                        <option value="BTC">Bitcoin (BTC)</option>
+                                        <option value="ETH">Ethereum (ETH)</option>
+                                        <option value="BNB">Binance Coin (BNB)</option>
+                                        <option value="SOL">Solana (SOL)</option>
+                                    </select>
+                                    <select name="type">
+                                        <option value="admin_credit">Credit (Add)</option>
+                                        <option value="admin_debit">Debit (Remove)</option>
+                                    </select>
+                                    <input name="amount" type="number" min="0.00000001" step="any" placeholder="Amount in Coin" required>
+                                    <input name="reason" placeholder="Reason" required minlength="5">
+                                </div>
+                                <p class="msg" role="alert"></p>
+                                <button class="btn">Update Crypto Balance</button>
+                            </form>
+
                             <form class="card" id="pinForm">
                                 <h3 style="margin-top:0">Reset transaction PIN</h3><input name="reason"
                                     placeholder="Reason" required minlength="5"
