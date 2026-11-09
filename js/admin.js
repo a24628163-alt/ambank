@@ -101,67 +101,72 @@ document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => {
 
 // --- ALL USERS LIST ---
 async function loadAllUsers() {
-  const { data, error } = await sb.from('profiles')
-    .select('*')
-    .order('created_at', { ascending: false })
-    .limit(100);
+  try {
+    const { data, error } = await sb.from('profiles')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(100);
 
-  if (error) return;
+    if (error) throw error;
 
-  const countBadge = $('allUsersCount');
-  if (countBadge) countBadge.textContent = data.length;
+    const countBadge = $('allUsersCount');
+    if (countBadge) countBadge.textContent = data.length;
 
-  $('allUsersList').innerHTML = data.length ? data.map(c => `
-    <li style="align-items: center; padding: 0.8rem 0;">
-      <div>
-        <b>${esc(c.full_name)}</b><br>
-        <small class="sim">${esc(c.email)}</small><br>
-        <span class="badge ${c.account_status === 'active' ? 'active' : 'open'}" style="font-size:0.65rem; margin-top:4px; display:inline-block;">${esc(c.account_status).replace('_', ' ')}</span>
-      </div>
-      <button class="btn ghost manage-btn" data-id="${c.user_id}" style="padding: 0.4rem 0.8rem;">Manage</button>
-    </li>
-  `).join('') : '<li>No users found.</li>';
-  
-  // Attach event listeners for mobile compatibility
-  document.querySelectorAll('.manage-btn').forEach(btn => {
-    btn.onclick = () => window.selectPending(btn.dataset.id);
-  });
+    $('allUsersList').innerHTML = data.length ? data.map(c => `
+      <li style="align-items: center; padding: 0.8rem 0;">
+        <div>
+          <b>${esc(c.full_name)}</b><br>
+          <small class="sim">${esc(c.email)}</small><br>
+          <span class="badge ${c.account_status === 'active' ? 'active' : 'open'}" style="font-size:0.65rem; margin-top:4px; display:inline-block;">${esc(c.account_status).replace('_', ' ')}</span>
+        </div>
+        <button class="btn ghost manage-btn" data-id="${c.user_id}" style="padding: 0.4rem 0.8rem;">Manage</button>
+      </li>
+    `).join('') : '<li>No users found.</li>';
+    
+    document.querySelectorAll('.manage-btn').forEach(btn => {
+      btn.onclick = () => window.selectPending(btn.dataset.id);
+    });
+  } catch (err) {
+    console.error("Error loading all users:", err);
+    $('allUsersList').innerHTML = `<li class="err">Failed to load users: ${esc(err.message)}</li>`;
+  }
 }
 
 // --- PENDING APPROVALS ---
 async function loadPendingApprovals() {
-  const { data, error } = await sb.from('profiles')
-    .select('*')
-    .eq('account_status', 'pending_approval')
-    .order('created_at', { ascending: false });
+  try {
+    const { data, error } = await sb.from('profiles')
+      .select('*')
+      .eq('account_status', 'pending_approval')
+      .order('created_at', { ascending: false });
 
-  if (error) {
-    console.error("Pending error:", error);
-    $('pendingList').innerHTML = `<li class="err">Error loading: ${esc(error.message)}</li>`;
-    return;
-  }
+    if (error) throw error;
 
-  const countBadge = $('pendingCount');
-  if (data && data.length > 0) {
-    countBadge.style.display = 'inline-block';
-    countBadge.textContent = data.length;
+    const countBadge = $('pendingCount');
+    if (data && data.length > 0) {
+      countBadge.style.display = 'inline-block';
+      countBadge.textContent = data.length;
 
-    $('pendingList').innerHTML = data.map(c => `
-      <li style="align-items: center; padding: 1rem 0;">
-        <div>
-          <b style="font-size: 1.05rem;">${esc(c.full_name)}</b><br>
-          <small class="sim">${esc(c.email)} · ID: ${esc(c.id_number || 'N/A')}</small>
-        </div>
-        <button class="btn ghost review-btn" data-id="${c.user_id}" style="padding: 0.4rem 0.8rem;">Review Details</button>
-      </li>
-    `).join('');
-    
-    document.querySelectorAll('.review-btn').forEach(btn => {
-      btn.onclick = () => window.selectPending(btn.dataset.id);
-    });
-  } else {
-    countBadge.style.display = 'none';
-    $('pendingList').innerHTML = '<li>No pending approvals right now. 🎉</li>';
+      $('pendingList').innerHTML = data.map(c => `
+        <li style="align-items: center; padding: 1rem 0;">
+          <div>
+            <b style="font-size: 1.05rem;">${esc(c.full_name)}</b><br>
+            <small class="sim">${esc(c.email)} · ID: ${esc(c.id_number || 'N/A')}</small>
+          </div>
+          <button class="btn ghost review-btn" data-id="${c.user_id}" style="padding: 0.4rem 0.8rem;">Review Details</button>
+        </li>
+      `).join('');
+      
+      document.querySelectorAll('.review-btn').forEach(btn => {
+        btn.onclick = () => window.selectPending(btn.dataset.id);
+      });
+    } else {
+      countBadge.style.display = 'none';
+      $('pendingList').innerHTML = '<li>No pending approvals right now. 🎉</li>';
+    }
+  } catch (err) {
+    console.error("Error loading pending:", err);
+    $('pendingList').innerHTML = `<li class="err">Failed to load pending approvals: ${esc(err.message)}</li>`;
   }
 }
 
