@@ -54,12 +54,10 @@ function show() {
   $('login').hidden = true; $('app').hidden = false; $('role').textContent = role;
   document.querySelectorAll('.adminonly').forEach(e => e.hidden = role !== 'admin');
   
-  // Load everything
   loadTickets(); loadAudit(); loadStaff(); loadChats(); loadDeposits();
   loadPendingApprovals(); 
   loadAllUsers(); 
 
-  // Poll for new chats, deposits, and users every 5s
   chatsTimer = setInterval(() => { 
     loadChats(); 
     loadDeposits(); 
@@ -67,12 +65,10 @@ function show() {
     loadAllUsers(); 
   }, 5000);
 
-  // Heartbeat
   const beat = () => sb.rpc('staff_heartbeat').then(({ error }) => { if (error) stopTimers(); });
   beat();
   heartbeatTimer = setInterval(beat, 30000);
 
-  // Admin Notifications Poll
   loadAdminNotifications();
   notifTimer = setInterval(loadAdminNotifications, 30000);
 }
@@ -128,7 +124,7 @@ async function loadAllUsers() {
     });
   } catch (err) {
     console.error("Error loading all users:", err);
-    $('allUsersList').innerHTML = `<li class="err">Failed to load users: ${esc(err.message)}</li>`;
+    $('allUsersList').innerHTML = `<li class="err">Failed to load users.</li>`;
   }
 }
 
@@ -166,7 +162,7 @@ async function loadPendingApprovals() {
     }
   } catch (err) {
     console.error("Error loading pending:", err);
-    $('pendingList').innerHTML = `<li class="err">Failed to load pending approvals: ${esc(err.message)}</li>`;
+    $('pendingList').innerHTML = `<li class="err">Failed to load pending approvals.</li>`;
   }
 }
 
@@ -328,10 +324,13 @@ async function loadDeposits() {
 }
 
 window.approveDep = async (id) => {
-  if(!confirm('Have you verified that the funds were received? If this is a Transfer Fee, please give the code to the customer.')) return;
-  const { error } = await sb.rpc('admin_approve_deposit', { p_id: id });
+  if(!confirm('Have you verified this payment? If this is a Transfer Fee, the user will now see their code on their screen.')) return;
+  
+  // We update the deposit to 'approved' without crediting their app balance (since the fee is paid in real life)
+  const { error } = await sb.from('pending_deposits').update({ status: 'approved' }).eq('id', id);
   if (error) return alert(error.message);
-  alert('Approved successfully!');
+  
+  alert('Approved! The user can now get their code and complete the transfer.');
   loadDeposits();
 };
 

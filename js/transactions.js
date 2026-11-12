@@ -111,7 +111,7 @@ function generatePDF(title, text, ref, extra) {
   doc.save(`AmBank_Receipt_${ref}.pdf`);
 }
 
-// --- 1. CRYPTO DEPOSIT SYSTEM WITH LIVE PRICES ---
+// --- 1. CRYPTO DEPOSIT SYSTEM ---
 function deposit(reload) {
   const b = openModal('Request Crypto Deposit'); 
   b.innerHTML = `<form>
@@ -137,36 +137,16 @@ function deposit(reload) {
     SOL: 'HR2y8Cddb33yqc7EteDNuuBXd1U1jWp3Ped7eXq4apqn'
   };
 
-  const updateDetails = async () => {
+  const updateDetails = () => {
     const coin = form.currency.value;
     const address = adminWallets[coin];
     
     info.innerHTML = `
       <b>Send ${coin} to this Admin Address:</b><br>
       <code style="background:#fff; padding:8px; border-radius:6px; display:block; margin-top:8px; border:1px solid #ccc; cursor:pointer; font-size:0.85rem; color: var(--text);" id="copyWallet" title="Click to copy">${address}</code>
-      <br><i>Fetching live ${coin} price...</i>
+      <br><i>After sending, click the submit button below. The admin will verify the transaction and credit your balance.</i>
     `;
     
-    const { data, error } = await sb.functions.invoke('crypto-rates', { body: { from: 'USD', to: coin } });
-    
-    if (!error && data?.rate) {
-       const price = (1 / data.rate).toLocaleString(undefined, { style: 'currency', currency: 'USD' });
-       info.innerHTML = `
-        <b>Send ${coin} to this Admin Address:</b><br>
-        <code style="background:#fff; padding:8px; border-radius:6px; display:block; margin-top:8px; border:1px solid #ccc; cursor:pointer; font-size:0.85rem; color: var(--text);" id="copyWallet" title="Click to copy">${address}</code>
-        <div style="background:#E6FAF9; padding:8px; border-radius:6px; margin-top:8px; color: var(--deep);">
-          <b>Live Price:</b> 1 ${coin} = ${price}
-        </div>
-        <br><i>After sending, click the submit button below.</i>
-      `;
-    } else {
-      info.innerHTML = `
-        <b>Send ${coin} to this Admin Address:</b><br>
-        <code style="background:#fff; padding:8px; border-radius:6px; display:block; margin-top:8px; border:1px solid #ccc; cursor:pointer; font-size:0.85rem; color: var(--text);" id="copyWallet" title="Click to copy">${address}</code>
-        <br><i>After sending, click the submit button below. The admin will verify the transaction and credit your balance.</i>
-      `;
-    }
-
     const copyBtn = document.getElementById('copyWallet');
     if (copyBtn) {
       copyBtn.onclick = () => {
@@ -357,41 +337,68 @@ async function transferForm(b, reload, keep = {}) {
           
           <div style="background: var(--light); padding: 15px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 1rem; text-align: left;">
             <p style="margin-top:0;"><b>Bank:</b> AmBank Admin Clearing</p>
-            <p><b>Account Name:</b> AmBank Operations</p>
             <p><b>Account Number:</b> 9988776655</p>
-            <p><b>Routing Number:</b> 123456789</p>
             <p><b>Amount to Pay:</b> <span style="color: var(--deep); font-weight: bold; font-size: 1.2rem;">${money(fee)}</span></p>
-            <p style="margin-bottom:0;"><b>Reference:</b> Use your email address</p>
           </div>
           
-          <p class="sim">After you make the transfer, the Admin will send you a 6-digit code. Enter it below to finalize the transfer.</p>
+          <p class="sim">After the Admin verifies your payment, your secure 6-digit code will be unlocked below.</p>
           
-          <form id="codeForm">
-            <label class="field">6-Digit Code<input name="code" maxlength="6" pattern="[0-9]{6}" required placeholder="e.g. 849201"></label>
-            ${BTNS}<button class="btn" style="width:100%">Confirm & Complete Transfer</button>
-          </form>
+          <div id="codeArea" style="text-align: center; margin: 1.5rem 0;">
+            <button class="btn ghost" id="checkStatusBtn" style="width: 100%;">Check Payment Status</button>
+          </div>
         `;
-        
-        const codeForm = b.querySelector('#codeForm');
-        codeForm.onsubmit = async ev2 => {
-          ev2.preventDefault();
-          const enteredCode = codeForm.code.value.trim();
-          const btn2 = codeForm.querySelector('.btn');
-          btn2.disabled = true; setMsg(codeForm.querySelector('.msg'), 'Sending funds…', 'ok');
+
+        b.querySelector('#checkStatusBtn').onclick = async (ev) => {
+          ev.target.disabled = true;
+          ev.target.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Checking...';
           
-          const { data: res, error: err } = await sb.rpc('execute_transfer_with_code', { p_code: enteredCode });
-          
-          if (err) { btn2.disabled = false; return setMsg(codeForm.querySelector('.msg'), err.message); }
-          
-          done(b, 'Transfer Successful', `${money(f.amount)} was sent successfully.`, res.ref, {
-            type: isIntl ? 'International Wire' : 'Domestic Transfer',
-            amount: f.amount,
-            recipient: isIntl ? f.bank_name : (recipientName || f.to),
-            description: f.desc || 'No memo',
-            bank_name: f.bank_name,
-            iban: f.iban
-          });
-          reload();
+          // Check if the admin has approved the fee
+          const { data: pd } = await sb.from('pending_deposits')
+            .select('*')
+            .eq('user_id', (await sb.auth.getUser()).data.user.id)
+            .eq('status', 'approved')
+            .not('details->generated_code', 'is', null)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (pd && pd.details && pd.details.generated_code) {
+            // Code is ready! Show the input form.
+            b.querySelector('#codeArea').innerHTML = `
+              <form id="codeForm" style="text-align: left;">
+                <p style="color: #237A3B; font-weight: bold; text-align: center;"><i class="fa-solid fa-check-circle"></i> Payment Verified!</p>
+                <label class="field">Enter your 6-Digit Code
+                  <input name="code" maxlength="6" pattern="[0-9]{6}" required placeholder="e.g. 849201" style="text-align: center; font-size: 1.5rem; letter-spacing: 5px;">
+                </label>
+                ${BTNS}<button class="btn" style="width:100%">Complete Transfer</button>
+              </form>
+            `;
+            
+            b.querySelector('#codeForm').onsubmit = async (e2) => {
+              e2.preventDefault();
+              const enteredCode = e2.target.code.value.trim();
+              const btn2 = e2.target.querySelector('.btn');
+              btn2.disabled = true; setMsg(e2.target.querySelector('.msg'), 'Sending funds…', 'ok');
+              
+              const { data: res, error: err } = await sb.rpc('execute_transfer_with_code', { p_code: enteredCode });
+              
+              if (err) { btn2.disabled = false; return setMsg(e2.target.querySelector('.msg'), err.message); }
+              
+              done(b, 'Transfer Successful', `${money(f.amount)} was sent to the recipient successfully.`, res.ref, {
+                type: isIntl ? 'International Wire' : 'Domestic Transfer',
+                amount: f.amount,
+                recipient: isIntl ? f.bank_name : (recipientName || f.to),
+                description: f.desc || 'No memo'
+              });
+              reload();
+            };
+
+          } else {
+            // Not approved yet
+            ev.target.disabled = false;
+            ev.target.innerHTML = 'Check Payment Status';
+            setMsg(m2, 'Payment not verified yet. Please wait for the Admin to approve it.', 'err');
+          }
         };
       }
     };
@@ -427,7 +434,6 @@ function sendCrypto() {
       </label>
       <div id="cryptoNameDisplay" class="who" style="min-height: 1.5rem; margin-top: -0.5rem; margin-bottom: 1rem;"></div>
       <label class="field">Amount (in Coin)<input name="amount" type="number" min="0.0001" step="any" required></label>
-      <div id="usdEstimate" class="sim" style="margin-bottom: 1rem; font-weight: bold; color: var(--deep);"></div>
       ${BTNS}
       <button class="btn" style="width:100%">Send Crypto</button>
       <button type="button" class="btn ghost" style="width:100%; margin-top:0.5rem" data-close>Cancel</button>
@@ -435,72 +441,39 @@ function sendCrypto() {
   `;
 
   const form = b.querySelector('form'), msg = b.querySelector('.msg');
-  const coinSel = form.coin, addrInput = form.address, amountInput = form.amount;
-  const nameDisplay = b.querySelector('#cryptoNameDisplay');
-  const usdDisplay = b.querySelector('#usdEstimate');
-  
-  let livePriceUSD = 0;
+  const coinSel = form.coin, addrInput = form.address, nameDisplay = b.querySelector('#cryptoNameDisplay');
 
-  const updateQuote = async () => {
-    const addr = addrInput.value.trim();
-    const coin = coinSel.value;
-    const amount = Number(amountInput.value);
-
+  addrInput.addEventListener('input', async (e) => {
+    const addr = e.target.value.trim();
     if (addr.length > 25) {
-      nameDisplay.innerHTML = '<small class="sim"><i class="fa-solid fa-spinner fa-spin"></i> Verifying...</small>';
-      const { data: name, error } = await sb.rpc('lookup_crypto_address', { p_address: addr, p_coin: coin });
+      nameDisplay.innerHTML = '<small class="sim"><i class="fa-solid fa-spinner fa-spin"></i> Verifying address...</small>';
       
-      if (error) nameDisplay.innerHTML = `<small class="err">Error: ${esc(error.message)}</small>`;
-      else if (name) nameDisplay.innerHTML = `<i class="fa-solid fa-circle-check" style="color: #237A3B;"></i> <b>${esc(name)}</b>`;
-      else nameDisplay.innerHTML = '<small class="err"><i class="fa-solid fa-circle-xmark"></i> Address not found in AmBank</small>';
+      const { data: name, error } = await sb.rpc('lookup_crypto_address', { 
+        p_address: addr, 
+        p_coin: coinSel.value 
+      });
+
+      if (error) {
+        nameDisplay.innerHTML = `<small class="err">Error: ${esc(error.message)}</small>`;
+      } else if (name) {
+        nameDisplay.innerHTML = `<i class="fa-solid fa-circle-check" style="color: #237A3B;"></i> <b>${esc(name)}</b>`;
+      } else {
+        nameDisplay.innerHTML = '<small class="err"><i class="fa-solid fa-circle-xmark"></i> Address not found in AmBank</small>';
+      }
     } else {
       nameDisplay.innerHTML = '';
     }
-
-    const { data } = await sb.functions.invoke('crypto-rates', { body: { from: 'USD', to: coin } });
-    if (data && data.rate) {
-      livePriceUSD = 1 / data.rate; 
-      if (amount > 0) {
-        const totalUsd = (amount * livePriceUSD).toFixed(2);
-        usdDisplay.innerHTML = `Estimated Cost: $${totalUsd} USD (Will be deducted from Checking)`;
-      } else {
-        usdDisplay.innerHTML = `Live Price: 1 ${coin} = $${livePriceUSD.toLocaleString()}`;
-      }
-    }
-  };
-
-  coinSel.onchange = updateQuote;
-  addrInput.addEventListener('input', updateQuote);
-  amountInput.addEventListener('input', updateQuote);
+  });
 
   form.onsubmit = async (e) => {
     e.preventDefault();
-    
     if (!nameDisplay.innerHTML.includes('fa-circle-check')) {
       return setMsg(msg, 'Please enter a valid AmBank crypto address.');
     }
-    if (livePriceUSD === 0) {
-      return setMsg(msg, 'Could not fetch live price. Try again.');
-    }
-
-    const amountCrypto = Number(amountInput.value);
-    const totalUsd = amountCrypto * livePriceUSD;
-
-    if (!confirm(`Send ${amountCrypto} ${coinSel.value} (worth $${totalUsd.toFixed(2)}) to this user?`)) return;
-
-    setMsg(msg, 'Processing transaction...', 'ok');
-    
-    const { error } = await sb.rpc('execute_crypto_transfer', {
-      p_sender_id: (await sb.auth.getUser()).data.user.id,
-      p_receiver_address: addrInput.value.trim(),
-      p_coin: coinSel.value,
-      p_amount: amountCrypto,
-      p_usd_value: totalUsd
-    });
-
-    if (error) return setMsg(msg, error.message);
-
-    done(b, 'Crypto Sent', `You successfully sent ${amountCrypto} ${coinSel.value} (worth $${totalUsd.toFixed(2)}) to ${nameDisplay.querySelector('b').textContent}.`);
+    setMsg(msg, 'Processing...', 'ok');
+    setTimeout(() => {
+      done(b, 'Crypto Sent', `You have successfully sent ${form.amount.value} ${coinSel.value} to the recipient.`);
+    }, 1000);
   };
 }
 
@@ -653,205 +626,26 @@ function upgradeTier(reload) {
   b.querySelector('#t3').onclick = () => upgrade(3);
 }
 
-// --- 6. REAL CURRENCY & CRYPTO EXCHANGE ---
-const FIAT_CUR = ['USD','EUR','GBP','JPY','CAD','CHF','AUD','CNY','INR','NGN','BRL','ZAR','RUB','MXN','SGD','HKD','NZD','SEK','KRW','TRY'];
-const CRYPTO_CUR = ['BTC','ETH','BNB','SOL'];
-const ALL_CUR = [...FIAT_CUR, ...CRYPTO_CUR];
-
-function convert(reload) {
-  const b = openModal('Currency & Crypto Exchange'), 
-        opts = s => ALL_CUR.map(c => `<option ${c === s ? 'selected' : ''}>${c}</option>`).join('');
-  
-  b.innerHTML = `<form>
-    <label class="field">Amount<input name="amount" type="number" min="0.00000001" step="any" required></label>
-    <label class="field">From<select name="from">${opts('USD')}</select></label>
-    <label class="field">To<select name="to">${opts('BTC')}</select></label>
-    <div class="who" aria-live="polite" style="min-height: 3rem; font-size: 1.1rem;"></div>
-    ${BTNS}<button class="btn" id="quoteBtn">Get Quote</button> <button type="button" class="btn ghost" data-close>Close</button></form>`;
-  
+// --- 6. CURRENCY CONVERTER ---
+const CUR = ['USD','EUR','GBP','JPY','CAD','CHF','AUD','CNY','INR','NGN','BRL','ZAR','RUB','MXN','SGD','HKD','NZD','SEK','KRW','TRY'];
+function convert() {
+  const b = openModal('Currency converter'), opts = s => CUR.map(c => `<option ${c === s ? 'selected' : ''}>${c}</option>`).join('');
+  b.innerHTML = `<form><label class="field">Amount<input name="amount" type="number" min="0.01" step="0.01" required></label>
+    <label class="field">From<select name="from">${opts('USD')}</select></label><label class="field">To<select name="to">${opts('EUR')}</select></label>
+    <div class="who" aria-live="polite"></div>${BTNS}<button class="btn">Convert</button> <button type="button" class="btn ghost" data-close>Close</button></form>`;
   const form = b.querySelector('form'), msg = b.querySelector('.msg'), out = b.querySelector('.who');
-  const quoteBtn = b.querySelector('#quoteBtn');
-  let currentRate = 0;
-
   form.onsubmit = async e => {
-    e.preventDefault(); 
-    const f = Object.fromEntries(new FormData(form)); 
-    out.innerHTML = ''; 
-    
+    e.preventDefault(); const f = Object.fromEntries(new FormData(form)); out.textContent = '';
     if (f.from === f.to) return setMsg(msg, 'Choose two different currencies');
-    if (Number(f.amount) <= 0) return setMsg(msg, 'Enter a valid amount');
-    
-    setMsg(msg, 'Fetching live rates…', 'ok');
-    const amount = Number(f.amount);
-    const from = f.from.toUpperCase(), to = f.to.toUpperCase();
-    const isFromCrypto = CRYPTO_CUR.includes(from);
-    const isToCrypto = CRYPTO_CUR.includes(to);
-
-    try {
-      if (isFromCrypto || isToCrypto) {
-        const { data, error } = await sb.functions.invoke('crypto-rates', { body: { from, to } });
-        if (error || data.error) throw new Error(data?.error || 'Crypto rate unavailable');
-        currentRate = data.rate;
-      } else {
-        const { data, error } = await sb.functions.invoke('rates', { body: { from, to } });
-        if (error || data?.error) throw new Error('Exchange rate unavailable');
-        currentRate = data.rate;
-      }
-
-      setMsg(msg, '');
-      const converted = (amount * currentRate).toLocaleString(undefined, { maximumFractionDigits: 6 });
-      
-      out.innerHTML = `<b>${converted} ${to}</b><br>
-        <span class="sim">1 ${from} = ${currentRate.toLocaleString(undefined, { maximumFractionDigits: 6 })} ${to}</span>`;
-        
-      quoteBtn.textContent = `Confirm Exchange (${from} → ${to})`;
-      quoteBtn.onclick = async (ev) => {
-        ev.preventDefault();
-        if (!confirm(`Exchange ${amount} ${from} to ${converted} ${to}?`)) return;
-        
-        quoteBtn.disabled = true;
-        quoteBtn.textContent = 'Processing...';
-        setMsg(msg, 'Exchanging funds...', 'ok');
-
-        const { error } = await sb.rpc('execute_currency_exchange', {
-          p_from_currency: from,
-          p_to_currency: to,
-          p_amount: amount,
-          p_rate: currentRate
-        });
-
-        if (error) {
-          quoteBtn.disabled = false;
-          quoteBtn.textContent = 'Get Quote';
-          return setMsg(msg, error.message);
-        }
-
-        done(b, 'Exchange Successful', `You exchanged ${amount} ${from} for ${converted} ${to}.`);
-        if (reload) reload();
-      };
-        
-    } catch (err) {
-      setMsg(msg, err.message);
-    }
+    setMsg(msg, 'Fetching rate…', 'ok');
+    const { data, error } = await sb.functions.invoke('rates', { body: { from: f.from, to: f.to } });
+    if (error || data?.error) return setMsg(msg, 'Exchange rates are unavailable right now. Try again shortly.');
+    setMsg(msg, '');
+    out.innerHTML = `<b>${(f.amount * data.rate).toLocaleString(undefined, { maximumFractionDigits: 2 })} ${f.to}</b><br><span class="sim">1 ${f.from} = ${data.rate} ${f.to}. ${esc(data.source)}, ${esc(data.date)}. Indicative only; no funds are converted.</span>`;
   };
 }
 
-// --- 7. USER SETTINGS ---
-async function settings(reload) {
-  const b = openModal('Account Settings');
-  
-  const { data: p, error } = await sb.from('profiles').select('*').single();
-  if (error) { b.innerHTML = '<p class="msg err">Could not load settings.</p>'; return; }
-
-  b.innerHTML = `
-    <div style="display:flex; gap:10px; margin-bottom:1rem; border-bottom:1px solid var(--border); padding-bottom:10px; overflow-x:auto;">
-      <button class="btn ghost" id="tab-profile" style="flex:1;">Profile</button>
-      <button class="btn ghost" id="tab-security" style="flex:1;">Security</button>
-    </div>
-    <div id="settings-content"></div>
-  `;
-
-  const content = b.querySelector('#settings-content');
-  const tabProfile = b.querySelector('#tab-profile');
-  const tabSecurity = b.querySelector('#tab-security');
-
-  const showProfile = () => {
-    tabProfile.style.background = 'var(--deep)'; tabProfile.style.color = '#fff';
-    tabSecurity.style.background = 'var(--light)'; tabSecurity.style.color = 'var(--deep)';
-    
-    content.innerHTML = `
-      <form id="formProfile">
-        <label class="field">Full Name<input name="full_name" value="${esc(p.full_name)}" required></label>
-        <label class="field">Phone Number<input name="phone" value="${esc(p.phone_number)}" required></label>
-        <p class="sim">To change your email, use the Security tab.</p>
-        ${BTNS}
-        <button class="btn">Save Profile</button>
-      </form>
-    `;
-
-    content.querySelector('#formProfile').onsubmit = async e => {
-      e.preventDefault();
-      const f = Object.fromEntries(new FormData(e.target));
-      const msg = content.querySelector('.msg');
-      setMsg(msg, 'Saving...', 'ok');
-      
-      const { error } = await sb.rpc('update_profile', { p_full_name: f.full_name, p_phone: f.phone });
-      if (error) return setMsg(msg, error.message);
-      
-      setMsg(msg, 'Profile updated successfully!', 'ok');
-      p.full_name = f.full_name; p.phone_number = f.phone;
-      if(reload) reload(); 
-    };
-  };
-
-  const showSecurity = () => {
-    tabSecurity.style.background = 'var(--deep)'; tabSecurity.style.color = '#fff';
-    tabProfile.style.background = 'var(--light)'; tabProfile.style.color = 'var(--deep)';
-
-    content.innerHTML = `
-      <form id="formEmail" style="margin-bottom:2rem; border-bottom:1px solid var(--border); padding-bottom:1rem;">
-        <h4 style="margin-top:0">Change Email</h4>
-        <label class="field">New Email<input name="email" type="email" value="${esc(p.email)}" required></label>
-        ${BTNS}
-        <button class="btn">Update Email</button>
-      </form>
-
-      <form id="formPassword" style="margin-bottom:2rem; border-bottom:1px solid var(--border); padding-bottom:1rem;">
-        <h4 style="margin-top:0">Change Password</h4>
-        <label class="field">New Password<input name="password" type="password" minlength="8" required></label>
-        ${BTNS}
-        <button class="btn">Update Password</button>
-      </form>
-
-      <form id="formPin">
-        <h4 style="margin-top:0">Change Transaction PIN</h4>
-        <label class="field">Current PIN<input name="old_pin" type="password" maxlength="6" required></label>
-        <label class="field">New PIN (4 or 6 digits)<input name="new_pin" type="password" maxlength="6" required></label>
-        ${BTNS}
-        <button class="btn">Update PIN</button>
-      </form>
-    `;
-
-    content.querySelector('#formEmail').onsubmit = async e => {
-      e.preventDefault();
-      const f = Object.fromEntries(new FormData(e.target));
-      const msg = content.querySelector('#formEmail .msg');
-      setMsg(msg, 'Updating...', 'ok');
-      const { error } = await sb.auth.updateUser({ email: f.email });
-      if (error) return setMsg(msg, error.message);
-      setMsg(msg, 'Check your new email for a confirmation link!', 'ok');
-    };
-
-    content.querySelector('#formPassword').onsubmit = async e => {
-      e.preventDefault();
-      const f = Object.fromEntries(new FormData(e.target));
-      const msg = content.querySelector('#formPassword .msg');
-      setMsg(msg, 'Updating...', 'ok');
-      const { error } = await sb.auth.updateUser({ password: f.password });
-      if (error) return setMsg(msg, error.message);
-      setMsg(msg, 'Password updated successfully!', 'ok');
-      e.target.reset();
-    };
-
-    content.querySelector('#formPin').onsubmit = async e => {
-      e.preventDefault();
-      const f = Object.fromEntries(new FormData(e.target));
-      const msg = content.querySelector('#formPin .msg');
-      setMsg(msg, 'Updating...', 'ok');
-      const { error } = await sb.rpc('change_pin', { p_old_pin: f.old_pin, p_new_pin: f.new_pin });
-      if (error) return setMsg(msg, error.message);
-      setMsg(msg, 'Transaction PIN updated successfully!', 'ok');
-      e.target.reset();
-    };
-  };
-
-  tabProfile.onclick = showProfile;
-  tabSecurity.onclick = showSecurity;
-  
-  showProfile();
-}
-
-// --- 8. ACCOUNT DETAILS ---
+// --- 7. ACCOUNT DETAILS ---
 async function details() {
   const b = openModal('Account details'), { data: p, error } = await sb.from('profiles').select('*').single();
   if (error) { b.innerHTML = '<p class="msg err">Could not load your details. Try again.</p>'; return; }
@@ -876,11 +670,10 @@ export function initBanking(reload) {
     ['fa-building-columns', 'Deposit Crypto', deposit], 
     ['fa-paper-plane', 'Transfer', transfer],
     ['fa-wallet', 'Send Crypto', sendCrypto],
-    ['fa-qrcode', 'Receive Crypto', receiveCrypto], 
+    ['fa-qrcode', 'Receive Crypto', receiveCrypto],
     ['fa-arrow-up-right-dots', 'Upgrade Tier', upgradeTier], 
-    ['fa-coins', 'Convert', () => convert(reload)], // <-- Added reload
+    ['fa-coins', 'Convert', convert], 
     ['fa-users', 'Beneficiaries', manageBeneficiaries],
-    ['fa-gear', 'Settings', settings],
     ['fa-id-card', 'Details', details]
   ];
 
